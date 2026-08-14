@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BaseBibleService } from '../base-bible.service';
+import { ContinuityService } from '../../continuity/continuity.service';
 
 export interface CreateLocationBibleInput {
   locationId: string;
@@ -15,8 +16,8 @@ export interface CreateLocationBibleInput {
 
 @Injectable()
 export class LocationBibleService extends BaseBibleService<any> {
-  constructor(prisma: PrismaService) {
-    super(prisma, prisma.locationBible);
+  constructor(prisma: PrismaService, continuityService: ContinuityService) {
+    super(prisma, prisma.locationBible, 'locationId', continuityService);
   }
 
   /**
@@ -39,44 +40,21 @@ export class LocationBibleService extends BaseBibleService<any> {
    * Mendapatkan semua versi dari satu lokasi.
    */
   async findAllVersions(projectId: string, locationId: string) {
-    return this.prisma.locationBible.findMany({
-      where: { projectId, locationId },
-      orderBy: { version: 'desc' },
-    });
+    return super.findAllVersions(projectId, locationId);
   }
 
   /**
    * Mendapatkan semua lokasi aktif (versi terbaru per locationId).
    */
   async findAllActive(projectId: string) {
-    const all = await this.prisma.locationBible.findMany({
-      where: { projectId },
-      orderBy: { version: 'desc' },
-    });
-
-    const activeMap = new Map<string, any>();
-    for (const version of all) {
-      if (!activeMap.has(version.locationId)) {
-        activeMap.set(version.locationId, version);
-      }
-    }
-
-    return Array.from(activeMap.values());
+    return super.findAllActive(projectId);
   }
 
   /**
    * Mendapatkan versi spesifik Location Bible.
    */
   async findVersion(id: string) {
-    const entity = await this.prisma.locationBible.findUnique({
-      where: { id },
-    });
-
-    if (!entity) {
-      throw new NotFoundException(`Location Bible dengan id ${id} tidak ditemukan`);
-    }
-
-    return entity;
+    return super.findVersion(id);
   }
 
   /**
@@ -96,7 +74,7 @@ export class LocationBibleService extends BaseBibleService<any> {
       throw new NotFoundException(`Location Bible versi ${previousVersionId} tidak ditemukan`);
     }
 
-    return this.prisma.locationBible.create({
+    const created = await this.prisma.locationBible.create({
       data: {
         projectId: previous.projectId,
         locationId: previous.locationId,
@@ -113,17 +91,17 @@ export class LocationBibleService extends BaseBibleService<any> {
         status: 'draft',
       },
     });
-  }
 
-  /**
-   * Mengubah status review Location Bible.
-   */
-  async updateStatus(id: string, status: string) {
-    await this.findVersion(id);
+    // Item 5: re-check Scene yang mereferensikan lokasi ini ketika
+    // versi baru dibuat (kecuali minor revision).
+    if (!isMinorRevision) {
+      await this.triggerContinuityRecheck(
+        previous.projectId,
+        'location',
+        previous.locationId,
+      );
+    }
 
-    return this.prisma.locationBible.update({
-      where: { id },
-      data: { status },
-    });
+    return created;
   }
 }

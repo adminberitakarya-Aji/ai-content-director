@@ -8,7 +8,7 @@ describe('ContinuityService', () => {
   const mockPrisma = {
     scene: {
       findUnique: jest.fn(),
-      findMany: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     characterBible: {
       findFirst: jest.fn(),
@@ -41,24 +41,31 @@ describe('ContinuityService', () => {
     service = module.get<ContinuityService>(ContinuityService);
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
   describe('checkScene', () => {
     it('should return no flags when all references are approved', async () => {
-      // Scene dengan karakter dan lokasi yang valid
       mockPrisma.scene.findUnique.mockResolvedValue({
         id: 'scene-1',
         projectId: 'project-1',
+        sceneNumber: 1,
         characterIds: ['A01'],
         locationId: 'L01',
         propIds: [],
         time: 'Pagi hari',
       });
 
-      // Semua Bible approved
-      mockPrisma.characterBible.findFirst.mockResolvedValue({ id: 'char-1', status: 'approved' });
+      mockPrisma.characterBible.findFirst.mockResolvedValue({
+        id: 'char-1',
+        status: 'approved',
+        wardrobes: [{ name: 'Default', isDefault: true }],
+      });
       mockPrisma.locationBible.findFirst.mockResolvedValue({
         id: 'loc-1',
         status: 'approved',
@@ -74,6 +81,7 @@ describe('ContinuityService', () => {
       mockPrisma.scene.findUnique.mockResolvedValue({
         id: 'scene-1',
         projectId: 'project-1',
+        sceneNumber: 1,
         characterIds: ['A01', 'A09'],
         locationId: 'L01',
         propIds: [],
@@ -97,13 +105,18 @@ describe('ContinuityService', () => {
       mockPrisma.scene.findUnique.mockResolvedValue({
         id: 'scene-1',
         projectId: 'project-1',
+        sceneNumber: 1,
         characterIds: ['A01'],
         locationId: 'L99',
         propIds: [],
         time: 'Malam hari',
       });
 
-      mockPrisma.characterBible.findFirst.mockResolvedValue({ id: 'char-1', status: 'approved' });
+      mockPrisma.characterBible.findFirst.mockResolvedValue({
+        id: 'char-1',
+        status: 'approved',
+        wardrobes: [{ name: 'Default', isDefault: true }],
+      });
       mockPrisma.locationBible.findFirst.mockResolvedValue(null); // L99 tidak ditemukan
       mockPrisma.styleBible.findFirst.mockResolvedValue({ id: 'style-1', status: 'approved' });
 
@@ -116,13 +129,18 @@ describe('ContinuityService', () => {
       mockPrisma.scene.findUnique.mockResolvedValue({
         id: 'scene-1',
         projectId: 'project-1',
+        sceneNumber: 1,
         characterIds: ['A01'],
         locationId: 'L01',
         propIds: [],
         time: 'Malam hari', // Lighting lokasi kata "Pagi"
       });
 
-      mockPrisma.characterBible.findFirst.mockResolvedValue({ id: 'char-1', status: 'approved' });
+      mockPrisma.characterBible.findFirst.mockResolvedValue({
+        id: 'char-1',
+        status: 'approved',
+        wardrobes: [{ name: 'Default', isDefault: true }],
+      });
       mockPrisma.locationBible.findFirst.mockResolvedValue({
         id: 'loc-1',
         status: 'approved',
@@ -138,13 +156,18 @@ describe('ContinuityService', () => {
       mockPrisma.scene.findUnique.mockResolvedValue({
         id: 'scene-1',
         projectId: 'project-1',
+        sceneNumber: 1,
         characterIds: ['A01'],
         locationId: 'L01',
         propIds: [],
         time: 'Pagi hari',
       });
 
-      mockPrisma.characterBible.findFirst.mockResolvedValue({ id: 'char-1', status: 'approved' });
+      mockPrisma.characterBible.findFirst.mockResolvedValue({
+        id: 'char-1',
+        status: 'approved',
+        wardrobes: [{ name: 'Default', isDefault: true }],
+      });
       mockPrisma.locationBible.findFirst.mockResolvedValue({
         id: 'loc-1',
         status: 'approved',
@@ -154,6 +177,33 @@ describe('ContinuityService', () => {
 
       const result = await service.checkScene('scene-1');
       expect(result.flags.some((f) => f.flagType === 'style')).toBe(true);
+    });
+
+    it('should return wardrobe flag when approved character has no default wardrobe', async () => {
+      mockPrisma.scene.findUnique.mockResolvedValue({
+        id: 'scene-1',
+        projectId: 'project-1',
+        sceneNumber: 1,
+        characterIds: ['A01'],
+        locationId: 'L01',
+        propIds: [],
+        time: 'Pagi hari',
+      });
+
+      mockPrisma.characterBible.findFirst.mockResolvedValue({
+        id: 'char-1',
+        status: 'approved',
+        wardrobes: [], // Tidak ada wardrobe default
+      });
+      mockPrisma.locationBible.findFirst.mockResolvedValue({
+        id: 'loc-1',
+        status: 'approved',
+        lighting: { commonTimeOfDay: 'Pagi' },
+      });
+      mockPrisma.styleBible.findFirst.mockResolvedValue({ id: 'style-1', status: 'approved' });
+
+      const result = await service.checkScene('scene-1');
+      expect(result.flags.some((f) => f.flagType === 'wardrobe')).toBe(true);
     });
   });
 });

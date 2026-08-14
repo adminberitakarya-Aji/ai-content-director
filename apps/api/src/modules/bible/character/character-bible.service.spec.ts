@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CharacterBibleService } from './character-bible.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { ContinuityService } from '../../continuity/continuity.service';
 
 describe('CharacterBibleService', () => {
   let service: CharacterBibleService;
@@ -15,6 +16,13 @@ describe('CharacterBibleService', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    scene: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+  };
+
+  const mockContinuityService = {
+    runCheck: jest.fn().mockResolvedValue({ sceneId: 'scene-1', flags: [] }),
   };
 
   beforeEach(async () => {
@@ -22,10 +30,15 @@ describe('CharacterBibleService', () => {
       providers: [
         CharacterBibleService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ContinuityService, useValue: mockContinuityService },
       ],
     }).compile();
 
     service = module.get<CharacterBibleService>(CharacterBibleService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {

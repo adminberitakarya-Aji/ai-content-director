@@ -1,14 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { assertValidStatusTransition } from '../bible/base-bible.service';
 
 export type ReviewableType = 'character' | 'location' | 'prop' | 'style';
-
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  draft: ['review', 'rejected'],
-  review: ['approved', 'rejected', 'draft'],
-  approved: ['draft', 'rejected'],
-  rejected: ['draft', 'review'],
-};
 
 @Injectable()
 export class ReviewService {
@@ -31,14 +25,7 @@ export class ReviewService {
     }
 
     const currentStatus = entity.status;
-    const allowedTransitions = VALID_TRANSITIONS[currentStatus] || [];
-
-    if (!allowedTransitions.includes(newStatus)) {
-      throw new BadRequestException(
-        `Transisi status invalid: ${currentStatus} → ${newStatus}. ` +
-        `Transisi yang diwajib: ${allowedTransitions.join(', ') || 'none'}`,
-      );
-    }
+    assertValidStatusTransition(currentStatus, newStatus);
 
     return delegate.update({
       where: { id },

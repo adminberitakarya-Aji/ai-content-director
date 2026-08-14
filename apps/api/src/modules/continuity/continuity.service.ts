@@ -20,10 +20,12 @@ export class ContinuityService {
    * Continuity Lapis 1 — Data Consistency.
    * Memeriksa Scene terhadap versi Bible aktif (approved terbaru):
    * - Character ID: karakter ada & approved
+   * - Wardrobe: karakter punya minimal satu set wardrobe default
    * - Location ID: lokasi ada & approved
    * - Prop ID: prop ada & approved
    * - Time: waktu Scene selaras dengan lighting Location Bible
    * - Style: Scene tidak menyimpang dari Style Bible
+   * - Scene relationship: Scene berurutan di waktu sama berbagi karakter
    */
   async checkScene(sceneId: string): Promise<ContinuityCheckResult> {
     const scene = await this.prisma.scene.findUnique({
@@ -36,7 +38,7 @@ export class ContinuityService {
 
     const flags: ContinuityCheckResult['flags'] = [];
 
-    // 1. Validasi Character ID
+    // 1. Validasi Character ID + Wardrobe
     const characterIds = scene.characterIds as string[];
     for (const characterId of characterIds) {
       const character = await this.prisma.characterBible.findFirst({
@@ -56,6 +58,19 @@ export class ContinuityService {
           actualValue: `Karakter ${characterId} tidak ditemukan/belum approved`,
           description: `Karakter ${characterId} direferensikan di Scene tapi tidak ada versi approved di Character Bible`,
         });
+      } else {
+        // Item 4a: Wardrobe consistency — wajib minimal satu set default.
+        const wardrobes = (character.wardrobes as any[]) || [];
+        const hasDefaultSet = wardrobes.some((w) => w?.isDefault === true);
+        if (wardrobes.length === 0 || !hasDefaultSet) {
+          flags.push({
+            flagType: 'wardrobe',
+            fieldName: 'wardrobes',
+            expectedValue: `Karakter ${characterId} memiliki minimal satu set wardrobe default (isDefault: true)`,
+            actualValue: `Karakter ${characterId} tidak punya wardrobe default terdaftar`,
+            description: `Karakter ${characterId} tidak memiliki wardrobe default di Character Bible — tambahkan minimal satu set dengan isDefault: true`,
+          });
+        }
       }
     }
 
@@ -136,7 +151,70 @@ export class ContinuityService {
       });
     }
 
+    // 6. Validasi Scene relationship (item 4b)
+    const sceneRelationshipFlags = await this.checkSceneRelationship(scene);
+    flags.push(...sceneRelationshipFlags);
+
     return { sceneId, flags };
+  }
+
+  /**
+   * Scene relationship — validasi sederhana antar Scene berurutan.
+   *
+   * Jika dua Scene yang berurutan langsung (sceneNumber berdekatan) berbagi
+   * waktu yang sama persis (time string identik) tetapi tidak memiliki
+   * karakter yang sama, ini indikasi potensi inkonsistensi — karakter yang
+   * muncul hilang/berganti tanpa penjelasan naratif pada waktu yang sama.
+   */
+  private async checkSceneRelationship(
+    scene: {
+      id: string;
+      projectId: string;
+      sceneNumber: number;
+      characterIds: unknown;
+      time: string;
+    },
+  ): Promise<ContinuityCheckResult['flags']> {
+    const flags: ContinuityCheckResult['flags'] = [];
+
+    const neighbors = await this.prisma.scene.findMany({
+      where: {
+        projectId: scene.projectId,
+        sceneNumber: {
+          in: [scene.sceneNumber - 1, scene.sceneNumber + 1],
+        },
+      },
+    });
+
+    const currentCharacters = new Set(scene.characterIds as string[]);
+    const currentTime = scene.time.trim().toLowerCase();
+
+    for (const neighbor of neighbors) {
+      const neighborCharacters = new Set(neighbor.characterIds as string[]);
+      const shareCharacter = [...currentCharacters].some((id) =>
+        neighborCharacters.has(id),
+      );
+
+      const sameTime =
+        currentTime.length > 0 &&
+        neighbor.time.trim().toLowerCase() === currentTime;
+
+      if (sameTime && !shareCharacter && neighborCharacters.size > 0) {
+        const neighborCharacterList = [...neighborCharacters].join(', ');
+        const currentCharacterList =
+          [...currentCharacters].join(', ') || '(tidak ada)';
+
+        flags.push({
+          flagType: 'scene_relationship',
+          fieldName: 'characterIds',
+          expectedValue: `Scene berurutan dengan waktu yang sama (${scene.time}) harus berbagi karakter`,
+          actualValue: `Scene ${neighbor.sceneNumber} (${neighborCharacterList}) vs Scene ${scene.sceneNumber} (${currentCharacterList})`,
+          description: `Scene ${neighbor.sceneNumber} dan Scene ${scene.sceneNumber} terjadi pada waktu yang sama persis ("${scene.time}") namun tidak ada karakter yang sama — periksa apakah ini transisi yang disengaja`,
+        });
+      }
+    }
+
+    return flags;
   }
 
   /**

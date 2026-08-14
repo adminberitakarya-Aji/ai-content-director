@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BaseBibleService } from '../base-bible.service';
+import { ContinuityService } from '../../continuity/continuity.service';
 
 export interface CreateCharacterBibleInput {
   characterId: string;
@@ -28,8 +29,8 @@ export interface CreateCharacterBibleInput {
 
 @Injectable()
 export class CharacterBibleService extends BaseBibleService<any> {
-  constructor(prisma: PrismaService) {
-    super(prisma, prisma.characterBible);
+  constructor(prisma: PrismaService, continuityService: ContinuityService) {
+    super(prisma, prisma.characterBible, 'characterId', continuityService);
   }
 
   /**
@@ -65,47 +66,21 @@ export class CharacterBibleService extends BaseBibleService<any> {
    * Mendapatkan semua versi dari satu karakter.
    */
   async findAllVersions(projectId: string, characterId: string) {
-    return this.prisma.characterBible.findMany({
-      where: {
-        projectId,
-        characterId,
-      },
-      orderBy: { version: 'desc' },
-    });
+    return super.findAllVersions(projectId, characterId);
   }
 
   /**
    * Mendapatkan semua karakter aktif (versi terbaru per characterId).
    */
   async findAllActive(projectId: string) {
-    const all = await this.prisma.characterBible.findMany({
-      where: { projectId },
-      orderBy: { version: 'desc' },
-    });
-
-    const activeMap = new Map<string, any>();
-    for (const version of all) {
-      if (!activeMap.has(version.characterId)) {
-        activeMap.set(version.characterId, version);
-      }
-    }
-
-    return Array.from(activeMap.values());
+    return super.findAllActive(projectId);
   }
 
   /**
    * Mendapatkan versi spesifik Character Bible.
    */
   async findVersion(id: string) {
-    const entity = await this.prisma.characterBible.findUnique({
-      where: { id },
-    });
-
-    if (!entity) {
-      throw new NotFoundException(`Character Bible dengan id ${id} tidak ditemukan`);
-    }
-
-    return entity;
+    return super.findVersion(id);
   }
 
   /**
@@ -125,7 +100,7 @@ export class CharacterBibleService extends BaseBibleService<any> {
       throw new NotFoundException(`Character Bible versi ${previousVersionId} tidak ditemukan`);
     }
 
-    return this.prisma.characterBible.create({
+    const created = await this.prisma.characterBible.create({
       data: {
         projectId: previous.projectId,
         characterId: previous.characterId,
@@ -155,17 +130,17 @@ export class CharacterBibleService extends BaseBibleService<any> {
         status: 'draft',
       },
     });
-  }
 
-  /**
-   * Mengubah status review Character Bible.
-   */
-  async updateStatus(id: string, status: string) {
-    await this.findVersion(id);
+    // Item 5: re-check Scene yang mereferensikan karakter ini ketika
+    // versi baru dibuat (kecuali minor revision).
+    if (!isMinorRevision) {
+      await this.triggerContinuityRecheck(
+        previous.projectId,
+        'character',
+        previous.characterId,
+      );
+    }
 
-    return this.prisma.characterBible.update({
-      where: { id },
-      data: { status },
-    });
+    return created;
   }
 }

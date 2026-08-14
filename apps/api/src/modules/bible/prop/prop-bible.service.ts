@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BaseBibleService } from '../base-bible.service';
+import { ContinuityService } from '../../continuity/continuity.service';
 
 export interface CreatePropBibleInput {
   propId: string;
@@ -13,8 +14,8 @@ export interface CreatePropBibleInput {
 
 @Injectable()
 export class PropBibleService extends BaseBibleService<any> {
-  constructor(prisma: PrismaService) {
-    super(prisma, prisma.propBible);
+  constructor(prisma: PrismaService, continuityService: ContinuityService) {
+    super(prisma, prisma.propBible, 'propId', continuityService);
   }
 
   /**
@@ -35,44 +36,21 @@ export class PropBibleService extends BaseBibleService<any> {
    * Mendapatkan semua versi dari satu prop.
    */
   async findAllVersions(projectId: string, propId: string) {
-    return this.prisma.propBible.findMany({
-      where: { projectId, propId },
-      orderBy: { version: 'desc' },
-    });
+    return super.findAllVersions(projectId, propId);
   }
 
   /**
    * Mendapatkan semua prop aktif (versi terbaru per propId).
    */
   async findAllActive(projectId: string) {
-    const all = await this.prisma.propBible.findMany({
-      where: { projectId },
-      orderBy: { version: 'desc' },
-    });
-
-    const activeMap = new Map<string, any>();
-    for (const version of all) {
-      if (!activeMap.has(version.propId)) {
-        activeMap.set(version.propId, version);
-      }
-    }
-
-    return Array.from(activeMap.values());
+    return super.findAllActive(projectId);
   }
 
   /**
    * Mendapatkan versi spesifik Prop Bible.
    */
   async findVersion(id: string) {
-    const entity = await this.prisma.propBible.findUnique({
-      where: { id },
-    });
-
-    if (!entity) {
-      throw new NotFoundException(`Prop Bible dengan id ${id} tidak ditemukan`);
-    }
-
-    return entity;
+    return super.findVersion(id);
   }
 
   /**
@@ -92,7 +70,7 @@ export class PropBibleService extends BaseBibleService<any> {
       throw new NotFoundException(`Prop Bible versi ${previousVersionId} tidak ditemukan`);
     }
 
-    return this.prisma.propBible.create({
+    const created = await this.prisma.propBible.create({
       data: {
         projectId: previous.projectId,
         propId: previous.propId,
@@ -107,17 +85,17 @@ export class PropBibleService extends BaseBibleService<any> {
         status: 'draft',
       },
     });
-  }
 
-  /**
-   * Mengubah status review Prop Bible.
-   */
-  async updateStatus(id: string, status: string) {
-    await this.findVersion(id);
+    // Item 5: re-check Scene yang mereferensikan prop ini ketika
+    // versi baru dibuat (kecuali minor revision).
+    if (!isMinorRevision) {
+      await this.triggerContinuityRecheck(
+        previous.projectId,
+        'prop',
+        previous.propId,
+      );
+    }
 
-    return this.prisma.propBible.update({
-      where: { id },
-      data: { status },
-    });
+    return created;
   }
 }

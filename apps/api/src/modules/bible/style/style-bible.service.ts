@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BaseBibleService } from '../base-bible.service';
+import { ContinuityService } from '../../continuity/continuity.service';
 
 export interface CreateStyleBibleInput {
   visualStyle: string;
@@ -18,8 +19,9 @@ export interface CreateStyleBibleInput {
 
 @Injectable()
 export class StyleBibleService extends BaseBibleService<any> {
-  constructor(prisma: PrismaService) {
-    super(prisma, prisma.styleBible);
+  constructor(prisma: PrismaService, continuityService: ContinuityService) {
+    // Style Bible tidak punya ID entitas — entityIdField undefined.
+    super(prisma, prisma.styleBible, undefined, continuityService);
   }
 
   /**
@@ -45,10 +47,7 @@ export class StyleBibleService extends BaseBibleService<any> {
    * Mendapatkan semua versi Style Bible untuk project.
    */
   async findAllVersions(projectId: string) {
-    return this.prisma.styleBible.findMany({
-      where: { projectId },
-      orderBy: { version: 'desc' },
-    });
+    return super.findAllVersions(projectId);
   }
 
   /**
@@ -67,15 +66,7 @@ export class StyleBibleService extends BaseBibleService<any> {
    * Mendapatkan versi spesifik Style Bible.
    */
   async findVersion(id: string) {
-    const entity = await this.prisma.styleBible.findUnique({
-      where: { id },
-    });
-
-    if (!entity) {
-      throw new NotFoundException(`Style Bible dengan id ${id} tidak ditemukan`);
-    }
-
-    return entity;
+    return super.findVersion(id);
   }
 
   /**
@@ -95,7 +86,7 @@ export class StyleBibleService extends BaseBibleService<any> {
       throw new NotFoundException(`Style Bible versi ${previousVersionId} tidak ditemukan`);
     }
 
-    return this.prisma.styleBible.create({
+    const created = await this.prisma.styleBible.create({
       data: {
         projectId: previous.projectId,
         version: previous.version + 1,
@@ -115,17 +106,13 @@ export class StyleBibleService extends BaseBibleService<any> {
         status: 'draft',
       },
     });
-  }
 
-  /**
-   * Mengubah status review Style Bible.
-   */
-  async updateStatus(id: string, status: string) {
-    await this.findVersion(id);
+    // Item 5: Style Bible berlaku global per project — re-check semua Scene
+    // (kecuali minor revision).
+    if (!isMinorRevision) {
+      await this.triggerContinuityRecheck(previous.projectId, 'style');
+    }
 
-    return this.prisma.styleBible.update({
-      where: { id },
-      data: { status },
-    });
+    return created;
   }
 }
