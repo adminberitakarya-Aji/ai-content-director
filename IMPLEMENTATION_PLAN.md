@@ -45,14 +45,14 @@ Penomoran task: `[Fase].[Urutan]`.
 
 ## Fase 2 — Scene Engine + Continuity Lapis 1
 
-- [ ] 2.1 Prisma: model `Scene` dengan foreign key ke `Character`, `Location`, `Prop` (bukan field string bebas).
-- [ ] 2.2 Prisma: model `ContinuityFlag` (relasi ke Scene, jenis pelanggaran, status resolved/unresolved).
-- [ ] 2.3 `packages/schema`: Zod schema `Scene`.
-- [ ] 2.4 `modules/scene`: controller + service CRUD, DTO yang mewajibkan referensi ID Bible (validasi FK ada & berstatus approved).
-- [ ] 2.5 `modules/continuity`: service Lapis 1 — bandingkan data Scene terhadap versi Bible aktif untuk tiap field kontinuitas (Character ID, Wardrobe, Location ID, Prop ID, Time, Style).
-- [ ] 2.6 Trigger continuity check otomatis: saat Scene dibuat/diubah, dan saat Bible terkait mendapat versi baru (cek semua Scene yang mereferensikannya).
-- [ ] 2.7 `apps/web`: Scene builder form (pilih Character/Location/Prop dari Bible yang sudah approved), tampilan badge continuity flag.
-- [ ] 2.8 Test: continuity flag muncul saat Scene mereferensikan versi Bible yang sudah usang; tidak muncul saat semua field konsisten.
+- [x] 2.1 Prisma: model `Scene` dengan foreign key ke `Character`, `Location`, `Prop` (bukan field string bebas).
+- [x] 2.2 Prisma: model `ContinuityFlag` (relasi ke Scene, jenis pelanggaran, status resolved/unresolved).
+- [x] 2.3 `packages/schema`: Zod schema `Scene`.
+- [x] 2.4 `modules/scene`: controller + service CRUD, DTO yang mewajibkan referensi ID Bible (validasi FK ada & berstatus approved).
+- [x] 2.5 `modules/continuity`: service Lapis 1 — bandingkan data Scene terhadap versi Bible aktif untuk tiap field kontinuitas (Character ID, Wardrobe, Location ID, Prop ID, Time, Style).
+- [x] 2.6 Trigger continuity check otomatis: saat Scene dibuat/diubah, dan saat Bible terkait mendapat versi baru (cek semua Scene yang mereferensikannya).
+- [x] 2.7 `apps/web`: Scene builder form (pilih Character/Location/Prop dari Bible yang sudah approved), tampilan badge continuity flag.
+- [x] 2.8 Test: continuity flag muncul saat Scene mereferensikan versi Bible yang sudah usang; tidak muncul saat semua field konsisten.
 
 **Definition of Done Fase 2**: Scene dapat dibuat dari Bible yang ada; perubahan Bible memicu re-validasi otomatis terhadap Scene terkait.
 

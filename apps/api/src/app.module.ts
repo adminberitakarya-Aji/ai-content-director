@@ -9,6 +9,8 @@ import { PropBibleModule } from './modules/bible/prop/prop-bible.module';
 import { StyleBibleModule } from './modules/bible/style/style-bible.module';
 import { ReviewModule } from './modules/review/review.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { SceneModule } from './modules/scene/scene.module';
+import { ContinuityModule } from './modules/continuity/continuity.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { StorageModule } from './modules/storage/storage.module';
     StyleBibleModule,
     ReviewModule,
     StorageModule,
+    SceneModule,
+    ContinuityModule,
   ],
   controllers: [HealthController],
   providers: [],

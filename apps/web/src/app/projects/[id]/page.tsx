@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
+import SceneTab from '@/components/SceneTab';
 
-type Tab = 'story' | 'characters' | 'locations' | 'props' | 'styles';
+type Tab = 'story' | 'scenes' | 'characters' | 'locations' | 'props' | 'styles';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -12,6 +13,7 @@ export default function ProjectDetailPage() {
   const [tab, setTab] = useState<Tab>('story');
   const [project, setProject] = useState<any>(null);
   const [stories, setStories] = useState<any[]>([]);
+  const [scenes, setScenes] = useState<any[]>([]);
   const [characters, setCharacters] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [props, setProps] = useState<any[]>([]);
@@ -24,9 +26,10 @@ export default function ProjectDetailPage() {
 
   async function loadAll() {
     try {
-      const [p, s, c, l, pr, st] = await Promise.all([
+      const [p, s, sc, c, l, pr, st] = await Promise.all([
         api.getProject(projectId),
         api.getStoryByProject(projectId),
+        api.getScenes(projectId),
         api.getCharacters(projectId),
         api.getLocations(projectId),
         api.getProps(projectId),
@@ -34,6 +37,7 @@ export default function ProjectDetailPage() {
       ]);
       setProject(p);
       setStories(s);
+      setScenes(sc);
       setCharacters(c);
       setLocations(l);
       setProps(pr);
@@ -45,6 +49,7 @@ export default function ProjectDetailPage() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'story', label: 'Story' },
+    { key: 'scenes', label: `Scene (${scenes.length})` },
     { key: 'characters', label: `Karakter (${characters.length})` },
     { key: 'locations', label: `Lokasi (${locations.length})` },
     { key: 'props', label: `Prop (${props.length})` },
@@ -72,6 +77,7 @@ export default function ProjectDetailPage() {
           </div>
 
           {tab === 'story' && <StoryTab projectId={projectId} stories={stories} onChanged={loadAll} />}
+          {tab === 'scenes' && <SceneTab projectId={projectId} scenes={scenes} characters={characters} locations={locations} onChanged={loadAll} />}
           {tab === 'characters' && <CharacterTab projectId={projectId} characters={characters} onChanged={loadAll} />}
           {tab === 'locations' && <LocationTab projectId={projectId} locations={locations} onChanged={loadAll} />}
           {tab === 'props' && <PropTab projectId={projectId} props={props} onChanged={loadAll} />}

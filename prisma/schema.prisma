@@ -31,6 +31,7 @@ model Project {
   locationBibles   LocationBible[]
   propBibles       PropBible[]
   styleBibles      StyleBible[]
+  scenes           Scene[]
 }
 
 model Story {
@@ -136,6 +137,51 @@ model PropBible {
 
   @@unique([projectId, propId, version])
   @@index([projectId, propId])
+}
+
+// ===== Fase 2: Scene =====
+model Scene {
+  id           String   @id @default(uuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episodeId    String?
+  sceneNumber  Int
+  title        String?
+  characterIds Json // array of Character ID (mis. ["A01", "A02"])
+  locationId   String // Location ID (mis. "L01")
+  propIds      Json? // array of Prop ID (mis. ["O01"])
+  time         String
+  action       String
+  emotions     Json // array of { characterId, emotion }
+  dialogues    Json? // array of { characterId, line, order }
+  status       String   @default("draft")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  continuityFlags ContinuityFlag[]
+
+  @@unique([projectId, sceneNumber])
+  @@index([projectId])
+}
+
+// ===== Fase 2: ContinuityFlag =====
+model ContinuityFlag {
+  id          String   @id @default(uuid())
+  sceneId     String
+  scene       Scene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  projectId   String
+  flagType    String // character_id | wardrobe | location_id | prop_id | time | scene_relationship | style
+  fieldName   String
+  expectedValue String
+  actualValue   String
+  description String
+  status      String   @default("unresolved") // unresolved → resolved(fixed) | resolved(accepted)
+  resolutionNote String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sceneId])
+  @@index([projectId, status])
 }
 
 // ===== Fase 1: Style Bible (dengan versioning) =====

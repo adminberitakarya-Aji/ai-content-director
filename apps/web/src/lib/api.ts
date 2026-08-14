@@ -49,6 +49,17 @@ export const api = {
   getStyles: (projectId: string) => request<any[]>(`/projects/${projectId}/styles`),
   createStyle: (projectId: string, data: any) => request<any>(`/projects/${projectId}/styles`, { method: 'POST', body: JSON.stringify(data) }),
 
+  // Scene
+  getScenes: (projectId: string) => request<any[]>(`/projects/${projectId}/scenes`),
+  createScene: (projectId: string, data: any) => request<any>(`/projects/${projectId}/scenes`, { method: 'POST', body: JSON.stringify(data) }),
+
+  // Continuity
+  runContinuityCheck: (projectId: string, sceneId: string) => request<any>(`/projects/${projectId}/continuity/scenes/${sceneId}/check`, { method: 'POST' }),
+  getSceneFlags: (projectId: string, sceneId: string) => request<any[]>(`/projects/${projectId}/continuity/scenes/${sceneId}/flags`),
+  getUnresolvedFlags: (projectId: string) => request<any[]>(`/projects/${projectId}/continuity/flags/unresolved`),
+  resolveFlag: (projectId: string, flagId: string, status: string, note?: string) =>
+    request<any>(`/projects/${projectId}/continuity/flags/${flagId}/resolve`, { method: 'PATCH', body: JSON.stringify({ status, note }) }),
+
   // Review
   getPendingReviews: (projectId: string) => request<any[]>(`/projects/${projectId}/reviews`),
   updateReviewStatus: (projectId: string, type: string, id: string, status: string) =>
