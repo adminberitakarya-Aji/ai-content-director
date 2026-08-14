@@ -36,7 +36,7 @@ Penomoran task: `[Fase].[Urutan]`.
 - [x] 1.9 `modules/bible/style`: sama pola dengan character.
 - [x] 1.10 `modules/review`: status field/endpoint dasar (draft → review → approved) yang dipakai keempat jenis Bible.
 - [x] 1.11 Dukungan input gambar referensi (upload/attach) untuk Character/Location/Prop Bible — storage lokal di `uploads/{projectId}/`.
-- [ ] 1.12 `apps/web`: halaman buat Project → isi Story → CRUD tiap jenis Bible, dengan indikator status review.
+- [x] 1.12 `apps/web`: halaman buat Project → isi Story → CRUD tiap jenis Bible, dengan indikator status review.
 - [ ] 1.13 Test: unit test service CRUD + versioning tiap Bible; test bahwa update tidak menimpa versi lama.
 
 **Definition of Done Fase 1**: pengguna bisa membuat Project lengkap dengan keempat jenis Bible tersimpan berversi dan berstatus approved, dapat diverifikasi lewat dashboard.
