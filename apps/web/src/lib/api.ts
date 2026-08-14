@@ -54,9 +54,23 @@ export const api = {
   getScenes: (projectId: string) => request<any[]>(`/projects/${projectId}/scenes`),
   createScene: (projectId: string, data: any) => request<any>(`/projects/${projectId}/scenes`, { method: 'POST', body: JSON.stringify(data) }),
 
+  // Storyboard
+  getShotsByScene: (projectId: string, sceneId: string) => request<any[]>(`/projects/${projectId}/storyboard/scenes/${sceneId}/shots`),
+  getShotsByProject: (projectId: string) => request<any[]>(`/projects/${projectId}/storyboard/shots`),
+  getShot: (projectId: string, shotId: string) => request<any>(`/projects/${projectId}/storyboard/shots/${shotId}`),
+  createShot: (projectId: string, sceneId: string, data: any) =>
+    request<any>(`/projects/${projectId}/storyboard/scenes/${sceneId}/shots`, { method: 'POST', body: JSON.stringify(data) }),
+  updateShot: (projectId: string, shotId: string, data: any) =>
+    request<any>(`/projects/${projectId}/storyboard/shots/${shotId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteShot: (projectId: string, shotId: string) =>
+    request<any>(`/projects/${projectId}/storyboard/shots/${shotId}`, { method: 'DELETE' }),
+  reorderShots: (projectId: string, sceneId: string, orderedIds: string[]) =>
+    request<any>(`/projects/${projectId}/storyboard/scenes/${sceneId}/shots/reorder`, { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
+
   // Continuity
   runContinuityCheck: (projectId: string, sceneId: string) => request<any>(`/projects/${projectId}/continuity/scenes/${sceneId}/check`, { method: 'POST' }),
   getSceneFlags: (projectId: string, sceneId: string) => request<any[]>(`/projects/${projectId}/continuity/scenes/${sceneId}/flags`),
+  getShotFlags: (projectId: string, shotId: string) => request<any[]>(`/projects/${projectId}/continuity/shots/${shotId}/flags`),
   getUnresolvedFlags: (projectId: string) => request<any[]>(`/projects/${projectId}/continuity/flags/unresolved`),
   resolveFlag: (projectId: string, flagId: string, status: string, note?: string) =>
     request<any>(`/projects/${projectId}/continuity/flags/${flagId}/resolve`, { method: 'PATCH', body: JSON.stringify({ status, note }) }),

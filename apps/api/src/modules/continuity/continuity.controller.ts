@@ -22,6 +22,11 @@ export class ContinuityController {
     return this.continuityService.getFlagsForScene(sceneId);
   }
 
+  @Get('shots/:shotId/flags')
+  getFlagsForShot(@Param('shotId') shotId: string) {
+    return this.continuityService.getFlagsForShot(shotId);
+  }
+
   @Get('flags/unresolved')
   getUnresolvedFlags(@Param('projectId') projectId: string) {
     return this.continuityService.getUnresolvedFlags(projectId);

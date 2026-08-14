@@ -158,9 +158,36 @@ model Scene {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  continuityFlags ContinuityFlag[]
+  shots            Shot[]
+  continuityFlags  ContinuityFlag[]
 
   @@unique([projectId, sceneNumber])
+  @@index([projectId])
+}
+
+// ===== Fase 3: Shot (Storyboard Engine) =====
+model Shot {
+  id                String   @id @default(uuid())
+  sceneId           String
+  scene             Scene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  projectId         String
+  shotNumber        Int
+  shotType          String // extreme-wide | wide | medium | close-up | extreme-close-up | over-the-shoulder | pov
+  framing           String
+  composition       String
+  cameraPosition    String // eye-level | high-angle | low-angle | birds-eye | worms-eye
+  lens              String?
+  cameraMovement    String? // static | pan | tilt | dolly | tracking | handheld | crane | zoom
+  characterBlocking Json? // array of { characterId, position, orientation }
+  visualBeat        String
+  status            String   @default("draft")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  continuityFlags   ContinuityFlag[]
+
+  @@unique([sceneId, shotNumber])
+  @@index([sceneId])
   @@index([projectId])
 }
 
@@ -169,8 +196,10 @@ model ContinuityFlag {
   id          String   @id @default(uuid())
   sceneId     String
   scene       Scene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  shotId      String?
+  shot        Shot?    @relation(fields: [shotId], references: [id], onDelete: Cascade)
   projectId   String
-  flagType    String // character_id | wardrobe | location_id | prop_id | time | scene_relationship | style
+  flagType    String // character_id | wardrobe | location_id | prop_id | time | scene_relationship | style | shot_blocking
   fieldName   String
   expectedValue String
   actualValue   String
@@ -181,6 +210,7 @@ model ContinuityFlag {
   updatedAt   DateTime @updatedAt
 
   @@index([sceneId])
+  @@index([shotId])
   @@index([projectId, status])
 }
 

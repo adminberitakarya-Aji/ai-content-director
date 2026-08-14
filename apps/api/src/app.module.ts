@@ -10,6 +10,7 @@ import { StyleBibleModule } from './modules/bible/style/style-bible.module';
 import { ReviewModule } from './modules/review/review.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { SceneModule } from './modules/scene/scene.module';
+import { StoryboardModule } from './modules/storyboard/storyboard.module';
 import { ContinuityModule } from './modules/continuity/continuity.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { ContinuityModule } from './modules/continuity/continuity.module';
     ReviewModule,
     StorageModule,
     SceneModule,
+    StoryboardModule,
     ContinuityModule,
   ],
   controllers: [HealthController],

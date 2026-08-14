@@ -12,6 +12,17 @@ export interface ContinuityCheckResult {
   }[];
 }
 
+export interface ShotContinuityCheckResult {
+  shotId: string;
+  flags: {
+    flagType: string;
+    fieldName: string;
+    expectedValue: string;
+    actualValue: string;
+    description: string;
+  }[];
+}
+
 @Injectable()
 export class ContinuityService {
   constructor(private readonly prisma: PrismaService) {}
@@ -280,6 +291,138 @@ export class ContinuityService {
       where: { projectId, status: 'unresolved' },
       orderBy: { createdAt: 'desc' },
       include: { scene: true },
+    });
+  }
+
+  /**
+   * Continuity Lapis 1 — Data Consistency di level Shot.
+   *
+   * Memeriksa Shot terhadap Scene induk dan Shot lain dalam Scene yang sama:
+   * - Character Blocking: setiap karakter yang diblokir harus terdaftar di Scene
+   * - Blocking consistency: posisi karakter di Shot ini harus konsisten dengan
+   *   Shot sebelumnya dalam Scene yang sama, kecuali ada pergerakan eksplisit
+   *   yang dicatat di Camera Movement atau Action.
+   */
+  async checkShot(shotId: string): Promise<ShotContinuityCheckResult> {
+    const shot = await this.prisma.shot.findUnique({
+      where: { id: shotId },
+      include: { scene: true },
+    });
+
+    if (!shot) {
+      return { shotId, flags: [] };
+    }
+
+    const flags: ShotContinuityCheckResult['flags'] = [];
+
+    // 1. Validasi Character Blocking terhadap Scene induk
+    const sceneCharacterIds = new Set(shot.scene.characterIds as string[]);
+    const blocking = (shot.characterBlocking as any[]) || [];
+
+    for (const b of blocking) {
+      if (!sceneCharacterIds.has(b.characterId)) {
+        flags.push({
+          flagType: 'shot_blocking',
+          fieldName: 'characterBlocking',
+          expectedValue: `Karakter ${b.characterId} terdaftar di Scene induk`,
+          actualValue: `Karakter ${b.characterId} tidak ada di Scene ${shot.scene.sceneNumber}`,
+          description: `Shot ${shot.shotNumber} memblokir karakter ${b.characterId} yang tidak terdaftar di Scene induk`,
+        });
+      }
+    }
+
+    // 2. Validasi blocking consistency dengan Shot sebelumnya dalam Scene yang sama
+    const previousShot = await this.prisma.shot.findFirst({
+      where: {
+        sceneId: shot.sceneId,
+        shotNumber: shot.shotNumber - 1,
+      },
+    });
+
+    if (previousShot) {
+      const prevBlocking = (previousShot.characterBlocking as any[]) || [];
+      const prevBlockingMap = new Map(
+        prevBlocking.map((b) => [b.characterId, b]),
+      );
+
+      for (const b of blocking) {
+        const prev = prevBlockingMap.get(b.characterId);
+        if (prev && prev.position !== b.position) {
+          // Posisi berbeda tanpa pergerakan eksplisit → potensi inkonsistensi
+          const hasExplicitMovement =
+            shot.cameraMovement && shot.cameraMovement !== 'static' ||
+            shot.scene.action.toLowerCase().includes('bergerak') ||
+            shot.scene.action.toLowerCase().includes('berjalan') ||
+            shot.scene.action.toLowerCase().includes('pindah');
+
+          if (!hasExplicitMovement) {
+            flags.push({
+              flagType: 'shot_blocking',
+              fieldName: 'characterBlocking',
+              expectedValue: `Posisi ${b.characterId} konsisten dengan Shot ${previousShot.shotNumber} (${prev.position})`,
+              actualValue: `Posisi ${b.characterId} di Shot ${shot.shotNumber} adalah ${b.position}`,
+              description: `Karakter ${b.characterId} berpindah posisi dari "${prev.position}" (Shot ${previousShot.shotNumber}) ke "${b.position}" (Shot ${shot.shotNumber}) tanpa pergerakan eksplisit yang dicatat`,
+            });
+          }
+        }
+      }
+    }
+
+    return { shotId, flags };
+  }
+
+  /**
+   * Menyimpan ContinuityFlag untuk Shot ke database.
+   * Flag lama yang unresolved untuk shot ini dihapus dulu, lalu dibuat ulang.
+   */
+  async saveShotFlags(result: ShotContinuityCheckResult): Promise<void> {
+    // Hapus flag lama yang unresolved untuk shot ini
+    await this.prisma.continuityFlag.deleteMany({
+      where: {
+        shotId: result.shotId,
+        status: 'unresolved',
+      },
+    });
+
+    const shot = await this.prisma.shot.findUnique({
+      where: { id: result.shotId },
+    });
+
+    if (!shot) return;
+
+    for (const flag of result.flags) {
+      await this.prisma.continuityFlag.create({
+        data: {
+          sceneId: shot.sceneId,
+          shotId: shot.id,
+          projectId: shot.projectId,
+          flagType: flag.flagType,
+          fieldName: flag.fieldName,
+          expectedValue: flag.expectedValue,
+          actualValue: flag.actualValue,
+          description: flag.description,
+          status: 'unresolved',
+        },
+      });
+    }
+  }
+
+  /**
+   * Menjalankan continuity check di level Shot dan menyimpan hasilnya.
+   */
+  async runShotCheck(shotId: string): Promise<ShotContinuityCheckResult> {
+    const result = await this.checkShot(shotId);
+    await this.saveShotFlags(result);
+    return result;
+  }
+
+  /**
+   * Mendapatkan semua ContinuityFlag untuk sebuah Shot.
+   */
+  async getFlagsForShot(shotId: string) {
+    return this.prisma.continuityFlag.findMany({
+      where: { shotId },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

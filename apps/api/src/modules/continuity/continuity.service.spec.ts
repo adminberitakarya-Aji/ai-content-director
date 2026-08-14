@@ -2,208 +2,231 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ContinuityService } from './continuity.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
-describe('ContinuityService', () => {
+describe('ContinuityService (Shot-level)', () => {
   let service: ContinuityService;
+  let prisma: any;
 
-  const mockPrisma = {
-    scene: {
-      findUnique: jest.fn(),
-      findMany: jest.fn().mockResolvedValue([]),
-    },
-    characterBible: {
-      findFirst: jest.fn(),
-    },
-    locationBible: {
-      findFirst: jest.fn(),
-    },
-    propBible: {
-      findFirst: jest.fn(),
-    },
-    styleBible: {
-      findFirst: jest.fn(),
-    },
-    continuityFlag: {
-      create: jest.fn(),
-      deleteMany: jest.fn(),
-      findMany: jest.fn(),
-      update: jest.fn(),
-    },
+  const mockScene = {
+    id: 'scene-1',
+    projectId: 'project-1',
+    sceneNumber: 1,
+    characterIds: ['A01', 'A02'],
+    locationId: 'L01',
+    time: 'Pagi',
+    action: 'Karakter A berjalan ke jendela',
+  };
+
+  const mockShot = {
+    id: 'shot-1',
+    sceneId: 'scene-1',
+    projectId: 'project-1',
+    shotNumber: 1,
+    shotType: 'medium',
+    framing: 'rule of thirds',
+    composition: 'test',
+    cameraPosition: 'eye-level',
+    cameraMovement: 'static',
+    characterBlocking: [{ characterId: 'A01', position: 'kiri frame', orientation: 'menghadap kamera' }],
+    visualBeat: 'test',
+    scene: mockScene,
   };
 
   beforeEach(async () => {
+    prisma = {
+      shot: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+      },
+      continuityFlag: {
+        deleteMany: jest.fn(),
+        create: jest.fn(),
+        findMany: jest.fn(),
+      },
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ContinuityService,
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: PrismaService, useValue: prisma },
       ],
     }).compile();
 
     service = module.get<ContinuityService>(ContinuityService);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+  describe('checkShot', () => {
+    it('harus mengembalikan flag jika character blocking mereferensikan karakter yang tidak ada di Scene', async () => {
+      const shotWithInvalidBlocking = {
+        ...mockShot,
+        characterBlocking: [
+          { characterId: 'A99', position: 'kiri', orientation: 'menghadap' },
+        ],
+      };
+      prisma.shot.findUnique.mockResolvedValue(shotWithInvalidBlocking);
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
+      const result = await service.checkShot('shot-1');
 
-  describe('checkScene', () => {
-    it('should return no flags when all references are approved', async () => {
-      mockPrisma.scene.findUnique.mockResolvedValue({
-        id: 'scene-1',
-        projectId: 'project-1',
-        sceneNumber: 1,
-        characterIds: ['A01'],
-        locationId: 'L01',
-        propIds: [],
-        time: 'Pagi hari',
-      });
+      expect(result.flags).toHaveLength(1);
+      expect(result.flags[0].flagType).toBe('shot_blocking');
+      expect(result.flags[0].fieldName).toBe('characterBlocking');
+      expect(result.flags[0].description).toContain('A99');
+    });
 
-      mockPrisma.characterBible.findFirst.mockResolvedValue({
-        id: 'char-1',
-        status: 'approved',
-        wardrobes: [{ name: 'Default', isDefault: true }],
-      });
-      mockPrisma.locationBible.findFirst.mockResolvedValue({
-        id: 'loc-1',
-        status: 'approved',
-        lighting: { commonTimeOfDay: 'Pagi' },
-      });
-      mockPrisma.styleBible.findFirst.mockResolvedValue({ id: 'style-1', status: 'approved' });
+    it('harus mengembalikan flag jika posisi karakter berubah tanpa pergerakan eksplisit', async () => {
+      const shot2 = {
+        ...mockShot,
+        id: 'shot-2',
+        shotNumber: 2,
+        characterBlocking: [
+          { characterId: 'A01', position: 'kanan frame', orientation: 'menghadap kamera' },
+        ],
+        scene: {
+          ...mockScene,
+          action: 'Karakter A menatap ke luar jendela',
+        },
+      };
+      const prevShot = {
+        ...mockShot,
+        id: 'shot-1',
+        shotNumber: 1,
+        characterBlocking: [
+          { characterId: 'A01', position: 'kiri frame', orientation: 'menghadap kamera' },
+        ],
+      };
 
-      const result = await service.checkScene('scene-1');
+      prisma.shot.findUnique.mockResolvedValue(shot2);
+      prisma.shot.findFirst.mockResolvedValue(prevShot);
+
+      const result = await service.checkShot('shot-2');
+
+      expect(result.flags).toHaveLength(1);
+      expect(result.flags[0].flagType).toBe('shot_blocking');
+      expect(result.flags[0].description).toContain('berpindah posisi');
+    });
+
+    it('tidak boleh mengembalikan flag jika posisi karakter konsisten', async () => {
+      const shot2 = {
+        ...mockShot,
+        id: 'shot-2',
+        shotNumber: 2,
+        characterBlocking: [
+          { characterId: 'A01', position: 'kiri frame', orientation: 'menghadap kamera' },
+        ],
+      };
+      const prevShot = {
+        ...mockShot,
+        id: 'shot-1',
+        shotNumber: 1,
+        characterBlocking: [
+          { characterId: 'A01', position: 'kiri frame', orientation: 'menghadap kamera' },
+        ],
+      };
+
+      prisma.shot.findUnique.mockResolvedValue(shot2);
+      prisma.shot.findFirst.mockResolvedValue(prevShot);
+
+      const result = await service.checkShot('shot-2');
+
       expect(result.flags).toHaveLength(0);
     });
 
-    it('should return flag when character not approved', async () => {
-      mockPrisma.scene.findUnique.mockResolvedValue({
-        id: 'scene-1',
-        projectId: 'project-1',
-        sceneNumber: 1,
-        characterIds: ['A01', 'A09'],
-        locationId: 'L01',
-        propIds: [],
-        time: 'Pagi hari',
-      });
+    it('tidak boleh mengembalikan flag jika ada pergerakan eksplisit di Action Scene', async () => {
+      const shot2 = {
+        ...mockShot,
+        id: 'shot-2',
+        shotNumber: 2,
+        characterBlocking: [
+          { characterId: 'A01', position: 'kanan frame', orientation: 'menghadap kamera' },
+        ],
+        scene: {
+          ...mockScene,
+          action: 'Karakter A berjalan dari kiri ke kanan ruangan',
+        },
+      };
+      const prevShot = {
+        ...mockShot,
+        id: 'shot-1',
+        shotNumber: 1,
+        characterBlocking: [
+          { characterId: 'A01', position: 'kiri frame', orientation: 'menghadap kamera' },
+        ],
+      };
 
-      mockPrisma.characterBible.findFirst.mockResolvedValue(null); // A09 tidak ditemukan
-      mockPrisma.locationBible.findFirst.mockResolvedValue({
-        id: 'loc-1',
-        status: 'approved',
-        lighting: { commonTimeOfDay: 'Pagi' },
-      });
-      mockPrisma.styleBible.findFirst.mockResolvedValue({ id: 'style-1', status: 'approved' });
+      prisma.shot.findUnique.mockResolvedValue(shot2);
+      prisma.shot.findFirst.mockResolvedValue(prevShot);
 
-      const result = await service.checkScene('scene-1');
-      expect(result.flags.length).toBeGreaterThan(0);
-      expect(result.flags[0].flagType).toBe('character_id');
+      const result = await service.checkShot('shot-2');
+
+      expect(result.flags).toHaveLength(0);
     });
 
-    it('should return flag when location not approved', async () => {
-      mockPrisma.scene.findUnique.mockResolvedValue({
-        id: 'scene-1',
-        projectId: 'project-1',
-        sceneNumber: 1,
-        characterIds: ['A01'],
-        locationId: 'L99',
-        propIds: [],
-        time: 'Malam hari',
-      });
+    it('harus mengembalikan flags kosong jika Shot tidak ditemukan', async () => {
+      prisma.shot.findUnique.mockResolvedValue(null);
 
-      mockPrisma.characterBible.findFirst.mockResolvedValue({
-        id: 'char-1',
-        status: 'approved',
-        wardrobes: [{ name: 'Default', isDefault: true }],
-      });
-      mockPrisma.locationBible.findFirst.mockResolvedValue(null); // L99 tidak ditemukan
-      mockPrisma.styleBible.findFirst.mockResolvedValue({ id: 'style-1', status: 'approved' });
+      const result = await service.checkShot('shot-tidak-ada');
 
-      const result = await service.checkScene('scene-1');
-      expect(result.flags.length).toBeGreaterThan(0);
-      expect(result.flags.some((f) => f.flagType === 'location_id')).toBe(true);
+      expect(result.flags).toHaveLength(0);
     });
+  });
 
-    it('should return flag when time does not match location lighting', async () => {
-      mockPrisma.scene.findUnique.mockResolvedValue({
-        id: 'scene-1',
-        projectId: 'project-1',
-        sceneNumber: 1,
-        characterIds: ['A01'],
-        locationId: 'L01',
-        propIds: [],
-        time: 'Malam hari', // Lighting lokasi kata "Pagi"
+  describe('saveShotFlags', () => {
+    it('harus menghapus flag lama unresolved dan membuat flag baru', async () => {
+      prisma.shot.findUnique.mockResolvedValue(mockShot);
+      prisma.continuityFlag.create.mockResolvedValue({});
+
+      await service.saveShotFlags({
+        shotId: 'shot-1',
+        flags: [
+          {
+            flagType: 'shot_blocking',
+            fieldName: 'characterBlocking',
+            expectedValue: 'test',
+            actualValue: 'test',
+            description: 'test flag',
+          },
+        ],
       });
 
-      mockPrisma.characterBible.findFirst.mockResolvedValue({
-        id: 'char-1',
-        status: 'approved',
-        wardrobes: [{ name: 'Default', isDefault: true }],
+      expect(prisma.continuityFlag.deleteMany).toHaveBeenCalledWith({
+        where: { shotId: 'shot-1', status: 'unresolved' },
       });
-      mockPrisma.locationBible.findFirst.mockResolvedValue({
-        id: 'loc-1',
-        status: 'approved',
-        lighting: { commonTimeOfDay: 'Pagi' },
+      expect(prisma.continuityFlag.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          sceneId: 'scene-1',
+          shotId: 'shot-1',
+          projectId: 'project-1',
+          flagType: 'shot_blocking',
+          status: 'unresolved',
+        }),
       });
-      mockPrisma.styleBible.findFirst.mockResolvedValue({ id: 'style-1', status: 'approved' });
-
-      const result = await service.checkScene('scene-1');
-      expect(result.flags.some((f) => f.flagType === 'time')).toBe(true);
     });
+  });
 
-    it('should return flag when no style bible approved', async () => {
-      mockPrisma.scene.findUnique.mockResolvedValue({
-        id: 'scene-1',
-        projectId: 'project-1',
-        sceneNumber: 1,
-        characterIds: ['A01'],
-        locationId: 'L01',
-        propIds: [],
-        time: 'Pagi hari',
-      });
+  describe('runShotCheck', () => {
+    it('harus menjalankan check dan menyimpan flags', async () => {
+      prisma.shot.findUnique.mockResolvedValue(mockShot);
+      prisma.shot.findFirst.mockResolvedValue(null);
+      prisma.continuityFlag.deleteMany.mockResolvedValue({ count: 0 });
 
-      mockPrisma.characterBible.findFirst.mockResolvedValue({
-        id: 'char-1',
-        status: 'approved',
-        wardrobes: [{ name: 'Default', isDefault: true }],
-      });
-      mockPrisma.locationBible.findFirst.mockResolvedValue({
-        id: 'loc-1',
-        status: 'approved',
-        lighting: { commonTimeOfDay: 'Pagi' },
-      });
-      mockPrisma.styleBible.findFirst.mockResolvedValue(null); // Tidak ada style approved
+      const result = await service.runShotCheck('shot-1');
 
-      const result = await service.checkScene('scene-1');
-      expect(result.flags.some((f) => f.flagType === 'style')).toBe(true);
+      expect(result.shotId).toBe('shot-1');
+      expect(prisma.continuityFlag.deleteMany).toHaveBeenCalled();
     });
+  });
 
-    it('should return wardrobe flag when approved character has no default wardrobe', async () => {
-      mockPrisma.scene.findUnique.mockResolvedValue({
-        id: 'scene-1',
-        projectId: 'project-1',
-        sceneNumber: 1,
-        characterIds: ['A01'],
-        locationId: 'L01',
-        propIds: [],
-        time: 'Pagi hari',
-      });
+  describe('getFlagsForShot', () => {
+    it('harus mengembalikan flags untuk shot', async () => {
+      const flags = [{ id: 'flag-1', shotId: 'shot-1', status: 'unresolved' }];
+      prisma.continuityFlag.findMany.mockResolvedValue(flags);
 
-      mockPrisma.characterBible.findFirst.mockResolvedValue({
-        id: 'char-1',
-        status: 'approved',
-        wardrobes: [], // Tidak ada wardrobe default
-      });
-      mockPrisma.locationBible.findFirst.mockResolvedValue({
-        id: 'loc-1',
-        status: 'approved',
-        lighting: { commonTimeOfDay: 'Pagi' },
-      });
-      mockPrisma.styleBible.findFirst.mockResolvedValue({ id: 'style-1', status: 'approved' });
+      const result = await service.getFlagsForShot('shot-1');
 
-      const result = await service.checkScene('scene-1');
-      expect(result.flags.some((f) => f.flagType === 'wardrobe')).toBe(true);
+      expect(prisma.continuityFlag.findMany).toHaveBeenCalledWith({
+        where: { shotId: 'shot-1' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toEqual(flags);
     });
   });
 });

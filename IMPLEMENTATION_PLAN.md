@@ -60,12 +60,12 @@ Penomoran task: `[Fase].[Urutan]`.
 
 ## Fase 3 — Storyboard Engine
 
-- [ ] 3.1 Prisma: model `Shot` (child dari `Scene`) — shot type, framing, composition, camera position, lens, camera movement, blocking, visual beat.
-- [ ] 3.2 `packages/schema`: Zod schema `Shot`.
-- [ ] 3.3 `modules/storyboard`: controller + service CRUD Shot per Scene, urutan shot (ordering).
-- [ ] 3.4 Perluas `modules/continuity` untuk validasi di level Shot (mis. blocking konsisten dengan posisi karakter di Shot sebelumnya dalam Scene yang sama).
-- [ ] 3.5 `apps/web`: storyboard builder — tambah/urutkan/edit Shot per Scene.
-- [ ] 3.6 Test: continuity check di level Shot terpicu benar; ordering Shot tersimpan dan terbaca sesuai urutan.
+- [x] 3.1 Prisma: model `Shot` (child dari `Scene`) — shot type, framing, composition, camera position, lens, camera movement, blocking, visual beat.
+- [x] 3.2 `packages/schema`: Zod schema `Shot`.
+- [x] 3.3 `modules/storyboard`: controller + service CRUD Shot per Scene, urutan shot (ordering).
+- [x] 3.4 Perluas `modules/continuity` untuk validasi di level Shot (mis. blocking konsisten dengan posisi karakter di Shot sebelumnya dalam Scene yang sama).
+- [x] 3.5 `apps/web`: storyboard builder — tambah/urutkan/edit Shot per Scene.
+- [x] 3.6 Test: continuity check di level Shot terpicu benar; ordering Shot tersimpan dan terbaca sesuai urutan.
 
 **Definition of Done Fase 3**: tiap Scene dapat dipecah jadi shot list terstruktur, siap dikompilasi jadi prompt.
 

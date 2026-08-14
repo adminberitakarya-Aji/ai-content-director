@@ -41,9 +41,12 @@ export const CharacterBlockingSchema = z.object({
   orientation: z.string().min(1, 'Orientasi/arah hadap karakter wajib diisi'),
 });
 
+export type CharacterBlocking = z.infer<typeof CharacterBlockingSchema>;
+
 export const ShotSchema = z.object({
   id: z.string().uuid(),
   sceneId: z.string().uuid(),
+  projectId: z.string().uuid(),
   shotNumber: z.number().int().positive(),
   shotType: ShotType,
   framing: z.string().min(1, 'Framing wajib diisi'),
@@ -53,6 +56,7 @@ export const ShotSchema = z.object({
   cameraMovement: CameraMovement.optional(),
   characterBlocking: z.array(CharacterBlockingSchema).optional(),
   visualBeat: z.string().min(1, 'Visual beat wajib diisi'),
+  status: z.string().default('draft'),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
