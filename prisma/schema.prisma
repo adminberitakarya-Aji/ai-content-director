@@ -1,5 +1,5 @@
 // Prisma schema — single source of truth data model
-// Fase 0: skema awal minimal, akan diperluas di Fase 1+
+// Fase 1: Bible System dengan versioning
 
 generator client {
   provider = "prisma-client-js"
@@ -26,7 +26,11 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  stories Story[]
+  stories          Story[]
+  characterBibles  CharacterBible[]
+  locationBibles   LocationBible[]
+  propBibles       PropBible[]
+  styleBibles      StyleBible[]
 }
 
 model Story {
@@ -43,4 +47,122 @@ model Story {
   updatedAt         DateTime @updatedAt
 
   @@unique([projectId])
+}
+
+// ===== Fase 1: Character Bible (dengan versioning) =====
+model CharacterBible {
+  id                String   @id @default(uuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  characterId       String // mis. A01, A02
+  version           Int
+  name              String
+  role              String
+  age               String
+  gender            String
+  identityDesc      String
+  faceShape         String
+  eyeColor          String
+  skinColor         String
+  distinctiveFeatures String?
+  defaultExpression String
+  height            String
+  build             String
+  posture           String?
+  hairColor         String
+  hairLength        String
+  hairTexture       String
+  hairDefaultStyle  String
+  personality       Json?
+  wardrobes         Json // array of wardrobe sets
+  referenceImages   Json?
+  status            String   @default("draft") // draft → review → approved → rejected
+  isMinorRevision   Boolean  @default(false)
+  previousVersionId String? @unique
+  previousVersion   CharacterBible? @relation("CharacterVersionHistory", fields: [previousVersionId], references: [id])
+  nextVersion       CharacterBible? @relation("CharacterVersionHistory")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([projectId, characterId, version])
+  @@index([projectId, characterId])
+}
+
+// ===== Fase 1: Location Bible (dengan versioning) =====
+model LocationBible {
+  id                String   @id @default(uuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  locationId        String // mis. L01, L02
+  version           Int
+  name              String
+  exterior          Json?
+  interior          Json?
+  architecture      Json?
+  lighting          Json
+  atmosphere        String
+  referenceImages   Json?
+  status            String   @default("draft")
+  isMinorRevision   Boolean  @default(false)
+  previousVersionId String? @unique
+  previousVersion   LocationBible? @relation("LocationVersionHistory", fields: [previousVersionId], references: [id])
+  nextVersion       LocationBible? @relation("LocationVersionHistory")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([projectId, locationId, version])
+  @@index([projectId, locationId])
+}
+
+// ===== Fase 1: Prop Bible (dengan versioning) =====
+model PropBible {
+  id                String   @id @default(uuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  propId            String // mis. O01, O02
+  version           Int
+  name              String
+  appearance        Json
+  function          String
+  continuity        Json
+  referenceImages   Json?
+  status            String   @default("draft")
+  isMinorRevision   Boolean  @default(false)
+  previousVersionId String? @unique
+  previousVersion   PropBible? @relation("PropVersionHistory", fields: [previousVersionId], references: [id])
+  nextVersion       PropBible? @relation("PropVersionHistory")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([projectId, propId, version])
+  @@index([projectId, propId])
+}
+
+// ===== Fase 1: Style Bible (dengan versioning) =====
+model StyleBible {
+  id                String   @id @default(uuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version           Int
+  visualStyle       String
+  colorPalette      String
+  colorSaturation   String
+  colorContrast     String
+  lightingApproach  String
+  lightingTendency  String
+  texture           String?
+  framingPreference String
+  lensPreference    String?
+  cameraMovementTendency String
+  motionStyle       Json?
+  status            String   @default("draft")
+  isMinorRevision   Boolean  @default(false)
+  previousVersionId String? @unique
+  previousVersion   StyleBible? @relation("StyleVersionHistory", fields: [previousVersionId], references: [id])
+  nextVersion       StyleBible? @relation("StyleVersionHistory")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([projectId, version])
+  @@index([projectId])
 }
