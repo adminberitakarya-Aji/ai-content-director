@@ -1,0 +1,9 @@
+{
+  "extends": "@ai-content-director/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "base-content-adapter.interface.ts"],
+  "exclude": ["node_modules", "dist"]
+}

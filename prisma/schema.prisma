@@ -1,0 +1,46 @@
+// Prisma schema — single source of truth data model
+// Fase 0: skema awal minimal, akan diperluas di Fase 1+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== Fase 1: Project & Story =====
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  contentType String
+  genre       String
+  tone        String
+  audience    String
+  platform    String
+  duration    Int?
+  aspectRatio String
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stories Story[]
+}
+
+model Story {
+  id                String   @id @default(uuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  concept           String
+  premise           String
+  synopsis          String
+  structure         String?
+  timeline          String?
+  creativeDirection String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([projectId])
+}

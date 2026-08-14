@@ -1,0 +1,21 @@
+{
+  "name": "ai-content-director",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Content Production Director - sistem yang mengubah ide menjadi paket produksi konten visual terstruktur",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "turbo": "^2.1.2"
+  },
+  "packageManager": "pnpm@9.9.0",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
