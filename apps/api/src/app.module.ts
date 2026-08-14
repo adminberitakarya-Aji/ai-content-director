@@ -8,6 +8,7 @@ import { LocationBibleModule } from './modules/bible/location/location-bible.mod
 import { PropBibleModule } from './modules/bible/prop/prop-bible.module';
 import { StyleBibleModule } from './modules/bible/style/style-bible.module';
 import { ReviewModule } from './modules/review/review.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ReviewModule } from './modules/review/review.module';
     PropBibleModule,
     StyleBibleModule,
     ReviewModule,
+    StorageModule,
   ],
   controllers: [HealthController],
   providers: [],
