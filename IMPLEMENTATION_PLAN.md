@@ -25,16 +25,16 @@ Penomoran task: `[Fase].[Urutan]`.
 
 ## Fase 1 — Bible System (Fondasi)
 
-- [ ] 1.1 Prisma: definisikan model `Project`, `Story`.
-- [ ] 1.2 Prisma: definisikan model `CharacterBible`, `LocationBible`, `PropBible`, `StyleBible` — **dengan versioning** (field `version`, relasi ke versi sebelumnya atau tabel history terpisah — pilih salah satu pola dan konsisten di keempatnya).
-- [ ] 1.3 `packages/schema`: Zod schema untuk `Project`, `Story`, dan keempat jenis Bible, dipakai bersama api & web.
-- [ ] 1.4 `modules/project`: controller + service CRUD, DTO create/update.
-- [ ] 1.5 `modules/story`: controller + service CRUD, DTO create/update.
-- [ ] 1.6 `modules/bible/character`: CRUD + endpoint versioning (create new version, get version history).
-- [ ] 1.7 `modules/bible/location`: sama pola dengan character.
-- [ ] 1.8 `modules/bible/prop`: sama pola dengan character.
-- [ ] 1.9 `modules/bible/style`: sama pola dengan character.
-- [ ] 1.10 `modules/review`: status field/endpoint dasar (draft → review → approved) yang dipakai keempat jenis Bible.
+- [x] 1.1 Prisma: definisikan model `Project`, `Story`.
+- [x] 1.2 Prisma: definisikan model `CharacterBible`, `LocationBible`, `PropBible`, `StyleBible` — **dengan versioning** (field `version`, relasi `previousVersionId` → `nextVersion`).
+- [x] 1.3 `packages/schema`: Zod schema untuk `Project`, `Story`, dan keempat jenis Bible, dipakai bersama api & web.
+- [x] 1.4 `modules/project`: controller + service CRUD, DTO create/update.
+- [x] 1.5 `modules/story`: controller + service CRUD, DTO create/update.
+- [x] 1.6 `modules/bible/character`: CRUD + endpoint versioning (create new version, get version history).
+- [x] 1.7 `modules/bible/location`: sama pola dengan character.
+- [x] 1.8 `modules/bible/prop`: sama pola dengan character.
+- [x] 1.9 `modules/bible/style`: sama pola dengan character.
+- [x] 1.10 `modules/review`: status field/endpoint dasar (draft → review → approved) yang dipakai keempat jenis Bible.
 - [ ] 1.11 Dukungan input gambar referensi (upload/attach) untuk Character/Location/Prop Bible — tentukan storage (lokal/objek storage) sesuai kapasitas VPS.
 - [ ] 1.12 `apps/web`: halaman buat Project → isi Story → CRUD tiap jenis Bible, dengan indikator status review.
 - [ ] 1.13 Test: unit test service CRUD + versioning tiap Bible; test bahwa update tidak menimpa versi lama.
