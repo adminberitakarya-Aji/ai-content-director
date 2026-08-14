@@ -1,0 +1,133 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { CharacterBibleService } from './character-bible.service';
+import { PrismaService } from '../../../prisma/prisma.service';
+
+describe('CharacterBibleService', () => {
+  let service: CharacterBibleService;
+
+  const mockPrisma = {
+    project: {
+      findUnique: jest.fn(),
+    },
+    characterBible: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CharacterBibleService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
+    }).compile();
+
+    service = module.get<CharacterBibleService>(CharacterBibleService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('createCharacter', () => {
+    it('should create character version 1', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue({ id: 'project-1' });
+      mockPrisma.characterBible.create.mockResolvedValue({
+        id: 'char-1',
+        projectId: 'project-1',
+        characterId: 'A01',
+        version: 1,
+        name: 'Andi',
+        status: 'draft',
+      });
+
+      const input = {
+        characterId: 'A01',
+        name: 'Andi',
+        role: 'Protagonis',
+        age: '25',
+        gender: 'Pria',
+        identityDesc: 'Pemuda desa',
+        faceShape: 'Bulat',
+        eyeColor: 'Coklat',
+        skinColor: 'Sawo matang',
+        defaultExpression: 'Tenang',
+        height: '170cm',
+        build: 'Rata-rata',
+        hairColor: 'Hitam',
+        hairLength: 'Pendek',
+        hairTexture: 'Lurus',
+        hairDefaultStyle: 'Rapi',
+        wardrobes: [],
+      };
+
+      const result = await service.createCharacter('project-1', input);
+      expect(result.version).toBe(1);
+      expect(result.characterId).toBe('A01');
+    });
+  });
+
+  describe('createNewVersion', () => {
+    it('should create version 2 without overwriting version 1', async () => {
+      const previousVersion = {
+        id: 'char-1',
+        projectId: 'project-1',
+        characterId: 'A01',
+        version: 1,
+        name: 'Andi',
+        role: 'Protagonis',
+        age: '25',
+        gender: 'Pria',
+        identityDesc: 'Pemuda desa',
+        faceShape: 'Bulat',
+        eyeColor: 'Coklat',
+        skinColor: 'Sawo matang',
+        defaultExpression: 'Tenang',
+        height: '170cm',
+        build: 'Rata-rata',
+        hairColor: 'Hitam',
+        hairLength: 'Pendek',
+        hairTexture: 'Lurus',
+        hairDefaultStyle: 'Rapi',
+        wardrobes: [],
+        status: 'approved',
+      };
+
+      mockPrisma.characterBible.findUnique.mockResolvedValue(previousVersion);
+      mockPrisma.characterBible.create.mockResolvedValue({
+        ...previousVersion,
+        id: 'char-2',
+        version: 2,
+        name: 'Andi Wijaya',
+        previousVersionId: 'char-1',
+        status: 'draft',
+      });
+
+      const result = await service.createNewVersion('char-1', { name: 'Andi Wijaya' });
+
+      // Versi baru harus version 2, bukan menimpa version 1
+      expect(result.version).toBe(2);
+      expect(result.previousVersionId).toBe('char-1');
+      expect(result.name).toBe('Andi Wijaya');
+      expect(result.status).toBe('draft');
+    });
+  });
+
+  describe('findAllActive', () => {
+    it('should return only latest version per character', async () => {
+      mockPrisma.characterBible.findMany.mockResolvedValue([
+        { id: 'char-2', characterId: 'A01', version: 2, name: 'Andi Wijaya' },
+        { id: 'char-1', characterId: 'A01', version: 1, name: 'Andi' },
+        { id: 'char-3', characterId: 'A02', version: 1, name: 'Budi' },
+      ]);
+
+      const result = await service.findAllActive('project-1');
+      expect(result).toHaveLength(2);
+      expect(result[0].characterId).toBe('A01');
+      expect(result[0].version).toBe(2);
+    });
+  });
+});
