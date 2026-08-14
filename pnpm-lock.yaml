@@ -36,6 +36,9 @@ importers:
         specifier: ^7.8.1
         version: 7.8.2
     devDependencies:
+      '@ai-content-director/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@nestjs/cli':
         specifier: ^10.4.2
         version: 10.4.9
@@ -91,6 +94,9 @@ importers:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
     devDependencies:
+      '@ai-content-director/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@types/node':
         specifier: ^22.5.0
         version: 22.20.1
@@ -161,6 +167,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@ai-content-director/config':
+        specifier: workspace:*
+        version: link:../config
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
