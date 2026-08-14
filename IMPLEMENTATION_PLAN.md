@@ -9,15 +9,15 @@ Penomoran task: `[Fase].[Urutan]`.
 ## Fase 0 — Setup Proyek
 
 - [x] 0.1 Jalankan `scaffold.sh` untuk membuat struktur folder final (`ai-content-director/`).
-- [ ] 0.2 `git init`, commit awal struktur folder + `.gitkeep`.
-- [ ] 0.3 Setup `pnpm-workspace.yaml` dan `turbo.json` (pipeline `dev`, `build`, `lint`, `test`).
-- [ ] 0.4 Isi `packages/config/` — shared `tsconfig.base.json`, `eslint` config, (tailwind config kalau `apps/web` pakai Tailwind).
-- [ ] 0.5 Inisialisasi `apps/api` — NestJS project, hubungkan ke `packages/config`.
-- [ ] 0.6 Inisialisasi `apps/web` — Next.js project, hubungkan ke `packages/config`.
-- [ ] 0.7 Inisialisasi `apps/ai-service` — Python project (virtualenv/poetry), struktur folder sesuai `CLAUDE.md`.
-- [ ] 0.8 Setup `prisma/schema.prisma` kosong + koneksi database (provider, `DATABASE_URL` di `.env`).
-- [ ] 0.9 Setup `packages/schema` — install Zod, buat file schema kosong (sudah ada sebagai placeholder dari scaffold).
-- [ ] 0.10 Verifikasi: `turbo dev` menjalankan `api`, `web`, `ai-service` bersamaan tanpa error; masing-masing punya health check endpoint (`GET /health` untuk api & ai-service, halaman default untuk web).
+- [x] 0.2 `git init`, commit awal struktur folder + `.gitkeep`.
+- [x] 0.3 Setup `pnpm-workspace.yaml` dan `turbo.json` (pipeline `dev`, `build`, `lint`, `test`).
+- [x] 0.4 Isi `packages/config/` — shared `tsconfig.base.json`, `eslint` config, (tailwind config kalau `apps/web` pakai Tailwind).
+- [x] 0.5 Inisialisasi `apps/api` — NestJS project, hubungkan ke `packages/config`.
+- [x] 0.6 Inisialisasi `apps/web` — Next.js project, hubungkan ke `packages/config`.
+- [x] 0.7 Inisialisasi `apps/ai-service` — Python project (virtualenv/poetry), struktur folder sesuai `CLAUDE.md`.
+- [x] 0.8 Setup `prisma/schema.prisma` kosong + koneksi database (provider, `DATABASE_URL` di `.env`).
+- [x] 0.9 Setup `packages/schema` — install Zod, buat file schema kosong (sudah ada sebagai placeholder dari scaffold).
+- [x] 0.10 Verifikasi: `turbo dev` menjalankan `api`, `web`, `ai-service` bersamaan tanpa error; masing-masing punya health check endpoint (`GET /health` untuk api & ai-service, halaman default untuk web).
 
 **Definition of Done Fase 0**: repo bisa di-clone, `pnpm install && turbo dev` jalan tanpa error manual config tambahan.
 
