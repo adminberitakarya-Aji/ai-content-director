@@ -35,7 +35,7 @@ Penomoran task: `[Fase].[Urutan]`.
 - [x] 1.8 `modules/bible/prop`: sama pola dengan character.
 - [x] 1.9 `modules/bible/style`: sama pola dengan character.
 - [x] 1.10 `modules/review`: status field/endpoint dasar (draft → review → approved) yang dipakai keempat jenis Bible.
-- [ ] 1.11 Dukungan input gambar referensi (upload/attach) untuk Character/Location/Prop Bible — tentukan storage (lokal/objek storage) sesuai kapasitas VPS.
+- [x] 1.11 Dukungan input gambar referensi (upload/attach) untuk Character/Location/Prop Bible — storage lokal di `uploads/{projectId}/`.
 - [ ] 1.12 `apps/web`: halaman buat Project → isi Story → CRUD tiap jenis Bible, dengan indikator status review.
 - [ ] 1.13 Test: unit test service CRUD + versioning tiap Bible; test bahwa update tidak menimpa versi lama.
 
