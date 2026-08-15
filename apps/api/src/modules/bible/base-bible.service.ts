@@ -34,7 +34,7 @@ export function assertValidStatusTransition(
   if (!allowed.includes(newStatus)) {
     throw new BadRequestException(
       `Transisi status invalid: ${currentStatus} → ${newStatus}. ` +
-        `Transisi yang diizinkan: ${allowed.join(', ') || 'none'}`,
+      `Transisi yang diizinkan: ${allowed.join(', ') || 'none'}`,
     );
   }
 }
@@ -55,7 +55,7 @@ export abstract class BaseBibleService<
      */
     protected readonly entityIdField?: string,
     protected readonly continuityService?: ContinuityService,
-  ) {}
+  ) { }
 
   /**
    * Membuat entitas Bible versi 1 (versi pertama).
@@ -153,13 +153,20 @@ export abstract class BaseBibleService<
   /**
    * Membuat versi baru dari entitas Bible.
    * Versi lama TIDAK ditimpa — disimpan sebagai versi baru dengan previousVersionId.
+   *
+   * Field yang tidak disertakan di `data` otomatis diwarisi dari versi sebelumnya
+   * (partial update semantics) — subclass hanya perlu meneruskan field yang berubah.
+   *
+   * `entityType` WAJIB diteruskan oleh subclass ('character' | 'location' | 'prop' | 'style')
+   * agar triggerContinuityRecheck hanya me-recheck Scene yang benar-benar mereferensikan
+   * entitas ini (bukan seluruh Scene di project setiap kali).
    */
   async createNewVersion(
     previousVersionId: string,
     data: Record<string, unknown>,
     isMinorRevision = false,
+    entityType?: BibleEntityType,
   ): Promise<any> {
-    // Ambil versi lama untuk mendapatkan projectId, entityId, dan version number
     const previousVersion = await this.delegate.findUnique({
       where: { id: previousVersionId },
     });
@@ -169,10 +176,29 @@ export abstract class BaseBibleService<
     }
 
     const newVersionNumber = previousVersion['version'] + 1;
+    const entityId = this.entityIdField
+      ? previousVersion[this.entityIdField]
+      : undefined;
+
+    // Warisi seluruh field dari versi sebelumnya, lalu timpa dengan field yang
+    // eksplisit diberikan di `data`. Field kontrol (id, timestamp, status, versi,
+    // relasi) selalu dihapus dari hasil warisan karena diisi ulang secara eksplisit
+    // di bawah — mencegah id lama ikut terbawa ke record baru.
+    const inherited: Record<string, unknown> = { ...previousVersion, ...data };
+    delete inherited.id;
+    delete inherited.createdAt;
+    delete inherited.updatedAt;
+    delete inherited.previousVersionId;
+    delete inherited.nextVersion;
+    delete inherited.previousVersion;
+    delete inherited.version;
+    delete inherited.status;
+    delete inherited.isMinorRevision;
+    delete inherited.projectId;
 
     const created = await this.delegate.create({
       data: {
-        ...data,
+        ...inherited,
         projectId: previousVersion['projectId'],
         version: newVersionNumber,
         previousVersionId,
@@ -181,10 +207,14 @@ export abstract class BaseBibleService<
       },
     });
 
-    // Item 5: trigger continuity re-check terhadap Scene yang mereferensikan
-    // entitas Bible ini (kecuali minor revision yang tidak mengubah visual).
+    // Trigger continuity re-check HANYA terhadap Scene yang mereferensikan
+    // entitas Bible spesifik ini (kecuali minor revision yang tidak mengubah visual).
     if (!isMinorRevision) {
-      await this.triggerContinuityRecheck(previousVersion['projectId']);
+      await this.triggerContinuityRecheck(
+        previousVersion['projectId'],
+        entityType,
+        entityId,
+      );
     }
 
     return created;

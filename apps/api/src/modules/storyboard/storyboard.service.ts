@@ -29,7 +29,7 @@ export class StoryboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly continuityService: ContinuityService,
-  ) {}
+  ) { }
 
   /**
    * Membuat Shot baru di dalam Scene.
@@ -212,6 +212,11 @@ export class StoryboardService {
   /**
    * Mengubah urutan Shot dalam Scene (reorder).
    * Menerima array { id, shotNumber } dan mengupdate semuanya dalam transaksi.
+   *
+   * Setelah reorder, continuity check di-jalankan ulang untuk semua Shot di Scene ini —
+   * karena ContinuityService.checkShot menentukan "Shot sebelumnya" berdasarkan
+   * shotNumber - 1, jadi reorder mengubah pasangan Shot yang dibandingkan untuk
+   * validasi blocking consistency (lihat docs/instructions/06_storyboard_rules.md).
    */
   async reorderShots(sceneId: string, orderedIds: string[]) {
     const scene = await this.prisma.scene.findUnique({
@@ -232,7 +237,7 @@ export class StoryboardService {
       );
     }
 
-    const shotMap = new Map(shots.map((s) => [s.id, s]));
+    const shotMap = new Map(shots.map((s: { id: string }) => [s.id, s]));
     for (const id of orderedIds) {
       if (!shotMap.has(id)) {
         throw new BadRequestException(`Shot ${id} tidak ada di Scene ini`);
@@ -248,6 +253,12 @@ export class StoryboardService {
     );
 
     await this.prisma.$transaction(updates);
+
+    // Re-check continuity untuk semua Shot di Scene ini — urutan baru berarti
+    // pasangan "Shot vs Shot sebelumnya" berubah untuk validasi blocking.
+    for (const id of orderedIds) {
+      await this.continuityService.runShotCheck(id);
+    }
 
     return this.findShotsByScene(sceneId);
   }

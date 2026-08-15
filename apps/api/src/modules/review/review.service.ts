@@ -6,7 +6,7 @@ export type ReviewableType = 'character' | 'location' | 'prop' | 'style';
 
 @Injectable()
 export class ReviewService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Mengubah status review entitas Bible.
@@ -57,10 +57,10 @@ export class ReviewService {
     ]);
 
     return [
-      ...characters.map((e) => ({ ...e, entityType: 'character' })),
-      ...locations.map((e) => ({ ...e, entityType: 'location' })),
-      ...props.map((e) => ({ ...e, entityType: 'prop' })),
-      ...styles.map((e) => ({ ...e, entityType: 'style' })),
+      ...characters.map((e: Record<string, unknown>) => ({ ...e, entityType: 'character' })),
+      ...locations.map((e: Record<string, unknown>) => ({ ...e, entityType: 'location' })),
+      ...props.map((e: Record<string, unknown>) => ({ ...e, entityType: 'prop' })),
+      ...styles.map((e: Record<string, unknown>) => ({ ...e, entityType: 'style' })),
     ];
   }
 

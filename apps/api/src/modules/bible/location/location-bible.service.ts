@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BaseBibleService } from '../base-bible.service';
 import { ContinuityService } from '../../continuity/continuity.service';
@@ -59,49 +59,14 @@ export class LocationBibleService extends BaseBibleService<any> {
 
   /**
    * Membuat versi baru dari Location Bible.
-   * Versi lama TIDAK ditimpa.
+   * Versi lama TIDAK ditimpa. Field yang tidak disertakan di `input` otomatis
+   * diwarisi dari versi sebelumnya (lihat BaseBibleService.createNewVersion).
    */
   async createNewVersion(
     previousVersionId: string,
     input: Partial<CreateLocationBibleInput>,
     isMinorRevision = false,
   ) {
-    const previous = await this.prisma.locationBible.findUnique({
-      where: { id: previousVersionId },
-    });
-
-    if (!previous) {
-      throw new NotFoundException(`Location Bible versi ${previousVersionId} tidak ditemukan`);
-    }
-
-    const created = await this.prisma.locationBible.create({
-      data: {
-        projectId: previous.projectId,
-        locationId: previous.locationId,
-        version: previous.version + 1,
-        name: input.name ?? previous.name,
-        exterior: (input.exterior ?? previous.exterior) as any,
-        interior: (input.interior ?? previous.interior) as any,
-        architecture: (input.architecture ?? previous.architecture) as any,
-        lighting: (input.lighting ?? previous.lighting) as any,
-        atmosphere: input.atmosphere ?? previous.atmosphere,
-        referenceImages: (input.referenceImages ?? previous.referenceImages) as any,
-        previousVersionId,
-        isMinorRevision,
-        status: 'draft',
-      },
-    });
-
-    // Item 5: re-check Scene yang mereferensikan lokasi ini ketika
-    // versi baru dibuat (kecuali minor revision).
-    if (!isMinorRevision) {
-      await this.triggerContinuityRecheck(
-        previous.projectId,
-        'location',
-        previous.locationId,
-      );
-    }
-
-    return created;
+    return super.createNewVersion(previousVersionId, input, isMinorRevision, 'location');
   }
 }

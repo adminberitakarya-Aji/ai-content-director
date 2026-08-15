@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { join, resolve, relative, isAbsolute } from 'path';
 import { randomUUID } from 'crypto';
 
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
@@ -59,13 +59,25 @@ export class StorageService {
   /**
    * Mendapatkan path file dari URL.
    */
+  /**
+   * Mendapatkan path file dari URL.
+   * Memvalidasi bahwa path hasil resolve tetap berada di dalam UPLOAD_DIR —
+   * mencegah path traversal lewat "../" di url (mis. "/uploads/../../etc/passwd").
+   */
   getFilePath(url: string): string {
     if (!url.startsWith('/uploads/')) {
       throw new BadRequestException('URL invalid');
     }
 
-    const relativePath = url.replace('/uploads/', '');
-    return join(UPLOAD_DIR, relativePath);
+    const relativePath = url.replace(/^\/uploads\//, '');
+    const resolvedPath = resolve(UPLOAD_DIR, relativePath);
+    const rel = relative(UPLOAD_DIR, resolvedPath);
+
+    if (rel.startsWith('..') || isAbsolute(rel)) {
+      throw new BadRequestException('URL invalid');
+    }
+
+    return resolvedPath;
   }
 
   /**

@@ -35,8 +35,11 @@ export const api = {
   getCharacters: (projectId: string) => request<any[]>(`/projects/${projectId}/characters`),
   createCharacter: (projectId: string, data: any) => request<any>(`/projects/${projectId}/characters`, { method: 'POST', body: JSON.stringify(data) }),
   getCharacterVersions: (projectId: string, characterId: string) => request<any[]>(`/projects/${projectId}/characters/versions/${characterId}`),
-  createCharacterVersion: (projectId: string, characterId: string, data: any) =>
-    request<any>(`/projects/${projectId}/characters/${characterId}/versions`, { method: 'POST', body: JSON.stringify(data) }),
+  // NOTE: previousVersionId adalah database id (UUID) dari versi Bible sebelumnya,
+  // BUKAN characterId (mis. "A01"). Backend (character-bible.controller.ts) mengharapkan
+  // :id di path ini adalah id record, sesuai BaseBibleService.createNewVersion.
+  createCharacterVersion: (projectId: string, previousVersionId: string, data: any) =>
+    request<any>(`/projects/${projectId}/characters/${previousVersionId}/versions`, { method: 'POST', body: JSON.stringify(data) }),
 
   // Location Bible
   getLocations: (projectId: string) => request<any[]>(`/projects/${projectId}/locations`),

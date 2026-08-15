@@ -40,7 +40,7 @@ describe('ContinuityService (Shot-level)', () => {
       continuityFlag: {
         deleteMany: jest.fn(),
         create: jest.fn(),
-        findMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
       },
     };
 
@@ -199,6 +199,34 @@ describe('ContinuityService (Shot-level)', () => {
           status: 'unresolved',
         }),
       });
+    });
+
+    it('tidak boleh membuat ulang flag Shot yang sudah pernah resolved(accepted)', async () => {
+      prisma.shot.findUnique.mockResolvedValue(mockShot);
+      prisma.continuityFlag.findMany.mockResolvedValue([
+        {
+          flagType: 'shot_blocking',
+          fieldName: 'characterBlocking',
+          expectedValue: 'test',
+          actualValue: 'test',
+          status: 'resolved(accepted)',
+        },
+      ]);
+
+      await service.saveShotFlags({
+        shotId: 'shot-1',
+        flags: [
+          {
+            flagType: 'shot_blocking',
+            fieldName: 'characterBlocking',
+            expectedValue: 'test',
+            actualValue: 'test',
+            description: 'test flag',
+          },
+        ],
+      });
+
+      expect(prisma.continuityFlag.create).not.toHaveBeenCalled();
     });
   });
 

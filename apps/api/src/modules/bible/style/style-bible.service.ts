@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BaseBibleService } from '../base-bible.service';
 import { ContinuityService } from '../../continuity/continuity.service';
@@ -71,48 +71,16 @@ export class StyleBibleService extends BaseBibleService<any> {
 
   /**
    * Membuat versi baru dari Style Bible.
-   * Versi lama TIDAK ditimpa.
+   * Versi lama TIDAK ditimpa. Field yang tidak disertakan di `input` otomatis
+   * diwarisi dari versi sebelumnya (lihat BaseBibleService.createNewVersion).
+   * Style Bible berlaku global per project — entityType 'style' tanpa entityId
+   * membuat triggerContinuityRecheck me-recheck semua Scene di project.
    */
   async createNewVersion(
     previousVersionId: string,
     input: Partial<CreateStyleBibleInput>,
     isMinorRevision = false,
   ) {
-    const previous = await this.prisma.styleBible.findUnique({
-      where: { id: previousVersionId },
-    });
-
-    if (!previous) {
-      throw new NotFoundException(`Style Bible versi ${previousVersionId} tidak ditemukan`);
-    }
-
-    const created = await this.prisma.styleBible.create({
-      data: {
-        projectId: previous.projectId,
-        version: previous.version + 1,
-        visualStyle: input.visualStyle ?? previous.visualStyle,
-        colorPalette: input.colorPalette ?? previous.colorPalette,
-        colorSaturation: input.colorSaturation ?? previous.colorSaturation,
-        colorContrast: input.colorContrast ?? previous.colorContrast,
-        lightingApproach: input.lightingApproach ?? previous.lightingApproach,
-        lightingTendency: input.lightingTendency ?? previous.lightingTendency,
-        texture: input.texture ?? previous.texture,
-        framingPreference: input.framingPreference ?? previous.framingPreference,
-        lensPreference: input.lensPreference ?? previous.lensPreference,
-        cameraMovementTendency: input.cameraMovementTendency ?? previous.cameraMovementTendency,
-        motionStyle: (input.motionStyle ?? previous.motionStyle) as any,
-        previousVersionId,
-        isMinorRevision,
-        status: 'draft',
-      },
-    });
-
-    // Item 5: Style Bible berlaku global per project — re-check semua Scene
-    // (kecuali minor revision).
-    if (!isMinorRevision) {
-      await this.triggerContinuityRecheck(previous.projectId, 'style');
-    }
-
-    return created;
+    return super.createNewVersion(previousVersionId, input, isMinorRevision, 'style');
   }
 }

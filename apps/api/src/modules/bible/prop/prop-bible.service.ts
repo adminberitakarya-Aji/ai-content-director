@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { BaseBibleService } from '../base-bible.service';
 import { ContinuityService } from '../../continuity/continuity.service';
@@ -55,47 +55,14 @@ export class PropBibleService extends BaseBibleService<any> {
 
   /**
    * Membuat versi baru dari Prop Bible.
-   * Versi lama TIDAK ditimpa.
+   * Versi lama TIDAK ditimpa. Field yang tidak disertakan di `input` otomatis
+   * diwarisi dari versi sebelumnya (lihat BaseBibleService.createNewVersion).
    */
   async createNewVersion(
     previousVersionId: string,
     input: Partial<CreatePropBibleInput>,
     isMinorRevision = false,
   ) {
-    const previous = await this.prisma.propBible.findUnique({
-      where: { id: previousVersionId },
-    });
-
-    if (!previous) {
-      throw new NotFoundException(`Prop Bible versi ${previousVersionId} tidak ditemukan`);
-    }
-
-    const created = await this.prisma.propBible.create({
-      data: {
-        projectId: previous.projectId,
-        propId: previous.propId,
-        version: previous.version + 1,
-        name: input.name ?? previous.name,
-        appearance: (input.appearance ?? previous.appearance) as any,
-        function: input.function ?? previous.function,
-        continuity: (input.continuity ?? previous.continuity) as any,
-        referenceImages: (input.referenceImages ?? previous.referenceImages) as any,
-        previousVersionId,
-        isMinorRevision,
-        status: 'draft',
-      },
-    });
-
-    // Item 5: re-check Scene yang mereferensikan prop ini ketika
-    // versi baru dibuat (kecuali minor revision).
-    if (!isMinorRevision) {
-      await this.triggerContinuityRecheck(
-        previous.projectId,
-        'prop',
-        previous.propId,
-      );
-    }
-
-    return created;
+    return super.createNewVersion(previousVersionId, input, isMinorRevision, 'prop');
   }
 }

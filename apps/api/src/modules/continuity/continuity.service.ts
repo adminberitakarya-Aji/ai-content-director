@@ -25,7 +25,7 @@ export interface ShotContinuityCheckResult {
 
 @Injectable()
 export class ContinuityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Continuity Lapis 1 — Data Consistency.
@@ -230,7 +230,10 @@ export class ContinuityService {
 
   /**
    * Menyimpan ContinuityFlag ke database.
-   * Flag lama yang unresolved dihapus dulu, lalu dibuat ulang berdasarkan hasil check terbaru.
+   * Flag lama yang unresolved dihapus dulu, lalu dibuat ulang berdasarkan hasil check terbaru —
+   * KECUALI pelanggaran yang sama persis sudah pernah ditandai resolved(accepted) oleh pengguna
+   * (lihat docs/instructions/03_continuity_rules.md: penyimpangan yang diterima tidak boleh
+   * memblokir proses lagi). Flag resolved(accepted) tidak pernah dihapus di sini.
    */
   async saveFlags(result: ContinuityCheckResult): Promise<void> {
     // Hapus flag lama yang unresolved untuk scene ini
@@ -241,13 +244,34 @@ export class ContinuityService {
       },
     });
 
-    // Buat flag baru
-    for (const flag of result.flags) {
-      const scene = await this.prisma.scene.findUnique({
-        where: { id: result.sceneId },
-      });
+    if (result.flags.length === 0) return;
 
-      if (!scene) continue;
+    const scene = await this.prisma.scene.findUnique({
+      where: { id: result.sceneId },
+    });
+
+    if (!scene) return;
+
+    // Ambil pelanggaran yang sudah pernah diterima pengguna untuk Scene ini,
+    // supaya tidak dibuat ulang sebagai flag unresolved yang memblokir proses.
+    const acceptedFlags = await this.prisma.continuityFlag.findMany({
+      where: {
+        sceneId: result.sceneId,
+        status: 'resolved(accepted)',
+      },
+    });
+
+    const isAlreadyAccepted = (flag: ContinuityCheckResult['flags'][number]) =>
+      acceptedFlags.some(
+        (f: { flagType: string; fieldName: string; expectedValue: string; actualValue: string }) =>
+          f.flagType === flag.flagType &&
+          f.fieldName === flag.fieldName &&
+          f.expectedValue === flag.expectedValue &&
+          f.actualValue === flag.actualValue,
+      );
+
+    for (const flag of result.flags) {
+      if (isAlreadyAccepted(flag)) continue;
 
       await this.prisma.continuityFlag.create({
         data: {
@@ -373,7 +397,10 @@ export class ContinuityService {
 
   /**
    * Menyimpan ContinuityFlag untuk Shot ke database.
-   * Flag lama yang unresolved untuk shot ini dihapus dulu, lalu dibuat ulang.
+   * Flag lama yang unresolved untuk shot ini dihapus dulu, lalu dibuat ulang —
+   * KECUALI pelanggaran yang sama persis sudah pernah ditandai resolved(accepted)
+   * oleh pengguna (pola sama seperti saveFlags di level Scene, lihat
+   * docs/instructions/03_continuity_rules.md).
    */
   async saveShotFlags(result: ShotContinuityCheckResult): Promise<void> {
     // Hapus flag lama yang unresolved untuk shot ini
@@ -384,13 +411,33 @@ export class ContinuityService {
       },
     });
 
+    if (result.flags.length === 0) return;
+
     const shot = await this.prisma.shot.findUnique({
       where: { id: result.shotId },
     });
 
     if (!shot) return;
 
+    const acceptedFlags = await this.prisma.continuityFlag.findMany({
+      where: {
+        shotId: result.shotId,
+        status: 'resolved(accepted)',
+      },
+    });
+
+    const isAlreadyAccepted = (flag: ShotContinuityCheckResult['flags'][number]) =>
+      acceptedFlags.some(
+        (f: { flagType: string; fieldName: string; expectedValue: string; actualValue: string }) =>
+          f.flagType === flag.flagType &&
+          f.fieldName === flag.fieldName &&
+          f.expectedValue === flag.expectedValue &&
+          f.actualValue === flag.actualValue,
+      );
+
     for (const flag of result.flags) {
+      if (isAlreadyAccepted(flag)) continue;
+
       await this.prisma.continuityFlag.create({
         data: {
           sceneId: shot.sceneId,

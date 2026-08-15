@@ -204,6 +204,27 @@ describe('StoryboardService', () => {
       expect(result).toHaveLength(2);
     });
 
+    it('harus menjalankan continuity recheck untuk setiap Shot setelah reorder', async () => {
+      const shot1 = { ...mockShot, id: 'shot-1', shotNumber: 1 };
+      const shot2 = { ...mockShot, id: 'shot-2', shotNumber: 2 };
+
+      prisma.scene.findUnique.mockResolvedValue(mockScene);
+      prisma.shot.findMany.mockResolvedValue([shot1, shot2]);
+      prisma.$transaction.mockResolvedValue([{ ...shot2, shotNumber: 1 }, { ...shot1, shotNumber: 2 }]);
+      prisma.shot.findMany.mockResolvedValueOnce([shot1, shot2]).mockResolvedValueOnce([
+        { ...shot2, shotNumber: 1 },
+        { ...shot1, shotNumber: 2 },
+      ]);
+
+      await service.reorderShots('scene-1', ['shot-2', 'shot-1']);
+
+      // Urutan berubah → "Shot sebelumnya" untuk tiap Shot juga berubah,
+      // jadi continuity check harus dijalankan ulang untuk semua Shot yang di-reorder.
+      expect(continuityService.runShotCheck).toHaveBeenCalledWith('shot-2');
+      expect(continuityService.runShotCheck).toHaveBeenCalledWith('shot-1');
+      expect(continuityService.runShotCheck).toHaveBeenCalledTimes(2);
+    });
+
     it('harus menolak jika jumlah orderedIds tidak sesuai', async () => {
       prisma.scene.findUnique.mockResolvedValue(mockScene);
       prisma.shot.findMany.mockResolvedValue([mockShot]);
