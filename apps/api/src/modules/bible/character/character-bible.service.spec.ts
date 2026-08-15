@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { CharacterBibleService } from './character-bible.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ContinuityService } from '../../continuity/continuity.service';
@@ -195,6 +196,66 @@ describe('CharacterBibleService', () => {
       expect(result.previousVersionId).toBe('char-1');
       expect(result.name).toBe('Andi Wijaya');
       expect(result.status).toBe('draft');
+    });
+
+    it('should reject changing characterId via createNewVersion (identitas permanen)', async () => {
+      const previousVersion = {
+        id: 'char-1',
+        projectId: 'project-1',
+        characterId: 'A01',
+        characterEntityId: 'entity-uuid-1',
+        version: 1,
+        name: 'Andi',
+        status: 'approved',
+      };
+
+      mockPrisma.characterBible.findUnique.mockResolvedValue(previousVersion);
+
+      // User mencoba mengubah characterId dari "A01" jadi "B01" lewat createNewVersion
+      await expect(
+        service.createNewVersion('char-1', { characterId: 'B01', name: 'Andi' } as any),
+      ).rejects.toThrow(BadRequestException);
+
+      // Karena ditolak di awal, TIDAK BOLEH ada row baru yang sempat dibuat
+      expect(mockPrisma.characterBible.create).not.toHaveBeenCalled();
+    });
+
+    it('should allow createNewVersion when characterId sent matches the current value (no-op, tidak dianggap perubahan)', async () => {
+      const previousVersion = {
+        id: 'char-1',
+        projectId: 'project-1',
+        characterId: 'A01',
+        characterEntityId: 'entity-uuid-1',
+        version: 1,
+        name: 'Andi',
+        status: 'approved',
+      };
+
+      mockPrisma.characterBible.findUnique.mockResolvedValue(previousVersion);
+      mockPrisma.characterBible.create.mockResolvedValue({
+        ...previousVersion,
+        id: 'char-2',
+        version: 2,
+        name: 'Andi Wijaya',
+        status: 'draft',
+      });
+
+      // characterId dikirim tapi nilainya SAMA dengan yang sekarang — bukan
+      // percobaan mengubah, jadi tidak boleh ditolak.
+      const result = await service.createNewVersion('char-1', {
+        characterId: 'A01',
+        name: 'Andi Wijaya',
+      } as any);
+
+      expect(result.characterId).toBe('A01');
+      expect(mockPrisma.characterBible.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            characterId: 'A01',
+            characterEntityId: 'entity-uuid-1',
+          }),
+        }),
+      );
     });
   });
 

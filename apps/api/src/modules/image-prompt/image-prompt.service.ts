@@ -112,7 +112,7 @@ export class ImagePromptService {
         props,
         style,
         aspectRatio: project?.aspectRatio || '16:9',
-        unresolvedFlags: unresolvedFlags.map((f) => ({
+        unresolvedFlags: unresolvedFlags.map((f: { flagType: string; description: string }) => ({
           flagType: f.flagType,
           description: f.description,
         })),

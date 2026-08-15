@@ -244,10 +244,39 @@ export abstract class BaseBibleService<
     delete inherited.status;
     delete inherited.isMinorRevision;
     delete inherited.projectId;
+    delete inherited.characterEntityId;
+    delete inherited.locationEntityId;
+    delete inherited.propEntityId;
+
+    // Business ID (characterId/locationId/propId) adalah IDENTITAS PERMANEN —
+    // tidak boleh diubah lewat createNewVersion, meski user mengirimkannya di body
+    // request. Ditolak EKSPLISIT (bukan diam-diam diabaikan) supaya user tahu kenapa
+    // perubahannya tidak diterapkan, sesuai docs/instructions/08_output_rules.md.
+    // Lihat juga docs/instructions/04_bible_rules.md — "Sekali ditetapkan, ID ini
+    // tidak berubah sepanjang umur proyek". Kalau user perlu mengganti nama
+    // tampilan karakter, itu field `name`, bukan `characterId`.
+    if (
+      this.entityIdField &&
+      data[this.entityIdField] !== undefined &&
+      data[this.entityIdField] !== previousVersion[this.entityIdField]
+    ) {
+      throw new BadRequestException(
+        `${this.entityIdField} tidak bisa diubah lewat createNewVersion — ini identitas ` +
+          `permanen entitas (dipakai sebagai referensi stabil di Scene, Shot, dan GenerationJob). ` +
+          `Nilai saat ini: "${previousVersion[this.entityIdField]}". Jika perlu mengganti nama ` +
+          `tampilan, gunakan field "name", bukan "${this.entityIdField}".`,
+      );
+    }
+    if (this.entityIdField) {
+      inherited[this.entityIdField] = previousVersion[this.entityIdField];
+    }
 
     const created = await this.delegate.create({
       data: {
         ...inherited,
+        ...(this.entityRelationField
+          ? { [this.entityRelationField]: previousVersion[this.entityRelationField as string] }
+          : {}),
         projectId: previousVersion['projectId'],
         version: newVersionNumber,
         previousVersionId,
