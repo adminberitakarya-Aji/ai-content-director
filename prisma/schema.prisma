@@ -35,6 +35,7 @@ model Project {
   propBibles       PropBible[]
   styleBibles      StyleBible[]
   scenes           Scene[]
+  generationJobs   GenerationJob[]
 }
 
 // ===== Refactor: Character/Location/Prop sebagai identitas stabil =====
@@ -279,6 +280,7 @@ model Shot {
   updatedAt         DateTime @updatedAt
 
   continuityFlags   ContinuityFlag[]
+  generationJobs    GenerationJob[]
 
   @@unique([sceneId, shotNumber])
   @@index([sceneId])
@@ -308,6 +310,55 @@ model ContinuityFlag {
   @@index([sceneId, status])
   @@index([shotId, status])
   @@index([projectId, status])
+}
+
+// ===== Fase 4: GenerationJob =====
+// Mencatat setiap job generation (image/video) dengan versi prompt dan Bible
+// yang dipakai saat submit, untuk auditability (lihat CLAUDE.md — Konvensi Kode).
+model GenerationJob {
+  id               String   @id @default(uuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  shotId           String
+  shot             Shot     @relation(fields: [shotId], references: [id], onDelete: Cascade)
+  type             String // image | video
+  adapterName      String // flux | seedance | veo | kling | wan | runway
+  status           String   @default("pending") // pending → approved → submitted → processing → completed | failed | rejected | cancelled
+  promptConceptual String // prompt konseptual (netral terhadap model)
+  promptFinal      String? // prompt final setelah diterjemahkan adapter
+  promptVersion    Int      @default(1)
+  bibleVersions    Json // snapshot versi Bible yang dipakai: { character: { A01: 2 }, location: { L01: 1 }, prop: { O01: 1 }, style: 3 }
+  costEstimate     Float
+  costActual       Float?
+  currency         String   @default("USD")
+  outputAssetUrl   String?
+  errorMessage     String?
+  metadata         Json? // metadata tambahan dari adapter (seed, parameter, dst)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([shotId])
+  @@index([projectId, status])
+  @@index([adapterName])
+}
+
+// ===== Fase 4: AdapterPricingRate =====
+// Rate harga generation per adapter, dikelola internal (bukan fetch live dari API provider).
+// Diupdate manual lewat dashboard admin sederhana (lihat PRD.md 10.3).
+model AdapterPricingRate {
+  id            String   @id @default(uuid())
+  adapterName   String // flux | seedance | veo | kling | wan | runway
+  generationType String // image | video
+  rateStructure Json // struktur harga: { unit: "per_image" | "per_second" | "per_resolution", baseRate: number, resolutionMultipliers?: {...}, ... }
+  currency      String   @default("USD")
+  effectiveDate DateTime @default(now())
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([adapterName, generationType])
+  @@index([isActive])
 }
 
 // ===== Fase 1: Style Bible (dengan versioning) =====

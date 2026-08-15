@@ -5,8 +5,9 @@ import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import SceneTab from '@/components/SceneTab';
 import StoryboardTab from '@/components/StoryboardTab';
+import ImagePromptTab from '@/components/ImagePromptTab';
 
-type Tab = 'story' | 'scenes' | 'storyboard' | 'characters' | 'locations' | 'props' | 'styles';
+type Tab = 'story' | 'scenes' | 'storyboard' | 'image-prompt' | 'characters' | 'locations' | 'props' | 'styles';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -52,6 +53,7 @@ export default function ProjectDetailPage() {
     { key: 'story', label: 'Story' },
     { key: 'scenes', label: `Scene (${scenes.length})` },
     { key: 'storyboard', label: 'Storyboard' },
+    { key: 'image-prompt', label: 'Image Prompt' },
     { key: 'characters', label: `Karakter (${characters.length})` },
     { key: 'locations', label: `Lokasi (${locations.length})` },
     { key: 'props', label: `Prop (${props.length})` },
@@ -81,6 +83,7 @@ export default function ProjectDetailPage() {
           {tab === 'story' && <StoryTab projectId={projectId} stories={stories} onChanged={loadAll} />}
           {tab === 'scenes' && <SceneTab projectId={projectId} scenes={scenes} characters={characters} locations={locations} onChanged={loadAll} />}
           {tab === 'storyboard' && <StoryboardTab projectId={projectId} scenes={scenes} onChanged={loadAll} />}
+          {tab === 'image-prompt' && <ImagePromptTab projectId={projectId} scenes={scenes} />}
           {tab === 'characters' && <CharacterTab projectId={projectId} characters={characters} onChanged={loadAll} />}
           {tab === 'locations' && <LocationTab projectId={projectId} locations={locations} onChanged={loadAll} />}
           {tab === 'props' && <PropTab projectId={projectId} props={props} onChanged={loadAll} />}

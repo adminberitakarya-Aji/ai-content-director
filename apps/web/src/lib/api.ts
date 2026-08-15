@@ -82,4 +82,40 @@ export const api = {
   getPendingReviews: (projectId: string) => request<any[]>(`/projects/${projectId}/reviews`),
   updateReviewStatus: (projectId: string, type: string, id: string, status: string) =>
     request<any>(`/projects/${projectId}/reviews/${type}/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  // Image Prompt (Fase 4)
+  compileImagePrompt: (projectId: string, shotId: string) =>
+    request<any>(`/projects/${projectId}/image-prompt/shots/${shotId}/compile`, { method: 'POST' }),
+  createImageJob: (projectId: string, shotId: string) =>
+    request<any>(`/projects/${projectId}/image-prompt/shots/${shotId}/jobs`, { method: 'POST' }),
+  approveImageJob: (projectId: string, jobId: string) =>
+    request<any>(`/projects/${projectId}/image-prompt/jobs/${jobId}/approve`, { method: 'PATCH' }),
+  rejectImageJob: (projectId: string, jobId: string) =>
+    request<any>(`/projects/${projectId}/image-prompt/jobs/${jobId}/reject`, { method: 'PATCH' }),
+  submitImageJob: (projectId: string, jobId: string) =>
+    request<any>(`/projects/${projectId}/image-prompt/jobs/${jobId}/submit`, { method: 'POST' }),
+  getImageJobsByShot: (projectId: string, shotId: string) =>
+    request<any[]>(`/projects/${projectId}/image-prompt/shots/${shotId}/jobs`),
+  getImageJobsByProject: (projectId: string) =>
+    request<any[]>(`/projects/${projectId}/image-prompt/jobs`),
+  getImageJob: (projectId: string, jobId: string) =>
+    request<any>(`/projects/${projectId}/image-prompt/jobs/${jobId}`),
+
+  // Budget (Fase 4)
+  estimateCost: (adapterName: string, generationType: string, params?: { width?: number; height?: number; durationSeconds?: number }) =>
+    request<any>('/budget/estimate', { method: 'POST', body: JSON.stringify({ adapterName, generationType, ...params }) }),
+  getPricingRates: (adapterName?: string) =>
+    request<any[]>(`/budget/rates${adapterName ? `?adapterName=${adapterName}` : ''}`),
+  createPricingRate: (data: any) =>
+    request<any>('/budget/rates', { method: 'POST', body: JSON.stringify(data) }),
+  updatePricingRate: (id: string, data: any) =>
+    request<any>(`/budget/rates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deletePricingRate: (id: string) =>
+    request<any>(`/budget/rates/${id}`, { method: 'DELETE' }),
+
+  // Capability (Fase 4)
+  getCapabilities: (projectId: string) =>
+    request<any>(`/projects/${projectId}/capabilities`),
+  setImageGenerationEnabled: (projectId: string, enabled: boolean) =>
+    request<any>(`/projects/${projectId}/capabilities/image-generation`, { method: 'PUT', body: JSON.stringify({ enabled }) }),
 };

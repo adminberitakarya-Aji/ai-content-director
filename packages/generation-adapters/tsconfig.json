@@ -2,8 +2,9 @@
   "extends": "@ai-content-director/config/tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "types": ["node", "jest"]
   },
-  "include": ["src/**/*.ts", "base-generation-adapter.interface.ts"],
+  "include": ["src/**/*.ts", "flux/**/*.ts", "base-generation-adapter.interface.ts", "**/*.spec.ts"],
   "exclude": ["node_modules", "dist"]
 }

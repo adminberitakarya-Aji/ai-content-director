@@ -12,6 +12,9 @@ import { StorageModule } from './modules/storage/storage.module';
 import { SceneModule } from './modules/scene/scene.module';
 import { StoryboardModule } from './modules/storyboard/storyboard.module';
 import { ContinuityModule } from './modules/continuity/continuity.module';
+import { BudgetModule } from './modules/budget/budget.module';
+import { CapabilityModule } from './modules/capability/capability.module';
+import { ImagePromptModule } from './modules/image-prompt/image-prompt.module';
 
 @Module({
   imports: [
@@ -27,6 +30,9 @@ import { ContinuityModule } from './modules/continuity/continuity.module';
     SceneModule,
     StoryboardModule,
     ContinuityModule,
+    BudgetModule,
+    CapabilityModule,
+    ImagePromptModule,
   ],
   controllers: [HealthController],
   providers: [],

@@ -73,18 +73,28 @@ Penomoran task: `[Fase].[Urutan]`.
 
 ## Fase 4 — Image Prompt Engine + Budget Guard + Adapter Flux
 
-- [ ] 4.1 Prisma: model `GenerationJob` (relasi ke Shot, adapter target, status, versi prompt, versi Bible dipakai, cost estimate, cost actual, output asset URL).
-- [ ] 4.2 Prisma: model `AdapterPricingRate` (adapter name, rate structure, effective date).
-- [ ] 4.3 `apps/ai-service/src/prompt_compiler`: fungsi compile Image Prompt dari Shot + Bible + Style, baca `docs/instructions/07_prompt_rules.md` + `docs/knowledge/08_image_prompt_system.md`.
-- [ ] 4.4 `packages/generation-adapters/flux/`: implementasi `base-generation-adapter.interface.ts` — `buildPrompt`, `validateConstraints`, `estimateCost`, `submit`.
-- [ ] 4.5 `modules/image-prompt`: controller + service — trigger compile via ai-service, simpan hasil prompt.
-- [ ] 4.6 `modules/budget`: service estimasi biaya berdasarkan `AdapterPricingRate`, endpoint approve sebelum submit.
-- [ ] 4.7 `modules/capability`: toggle Image Generation per Project (on/off).
-- [ ] 4.8 Wiring: `image-prompt` → `budget` (wajib lolos estimasi) → `generation-adapters/flux` (submit) → simpan `GenerationJob` dengan hasil.
-- [ ] 4.9 `apps/web`: preview image prompt per Shot, tampilan estimasi biaya, tombol approve & submit, tampilan hasil gambar.
-- [ ] 4.10 Test: submit job tanpa lolos budget check harus ditolak (test negatif wajib); job yang lolos tersimpan dengan versi prompt & Bible tercatat.
+- [x] 4.1 Prisma: model `GenerationJob` (relasi ke Shot, adapter target, status, versi prompt, versi Bible dipakai, cost estimate, cost actual, output asset URL).
+- [x] 4.2 Prisma: model `AdapterPricingRate` (adapter name, rate structure, effective date).
+- [x] 4.3 `apps/ai-service/src/prompt_compiler`: fungsi compile Image Prompt dari Shot + Bible + Style, baca `docs/instructions/07_prompt_rules.md` + `docs/knowledge/08_image_prompt_system.md`.
+- [x] 4.4 `packages/generation-adapters/flux/`: implementasi `base-generation-adapter.interface.ts` — `buildPrompt`, `validateConstraints`, `estimateCost`, `submit`.
+- [x] 4.5 `modules/image-prompt`: controller + service — trigger compile via ai-service, simpan hasil prompt.
+- [x] 4.6 `modules/budget`: service estimasi biaya berdasarkan `AdapterPricingRate`, endpoint approve sebelum submit.
+- [x] 4.7 `modules/capability`: toggle Image Generation per Project (on/off).
+- [x] 4.8 Wiring: `image-prompt` → `budget` (wajib lolos estimasi) → `generation-adapters/flux` (submit) → simpan `GenerationJob` dengan hasil.
+- [x] 4.9 `apps/web`: preview image prompt per Shot, tampilan estimasi biaya, tombol approve & submit, tampilan hasil gambar.
+- [x] 4.10 Test: submit job tanpa lolos budget check harus ditolak (test negatif wajib); job yang lolos tersimpan dengan versi prompt & Bible tercatat.
 
 **Definition of Done Fase 4**: end-to-end pertama — Shot → Image Prompt → estimasi biaya → approve → Flux → hasil gambar tersimpan sebagai `GenerationJob`.
+
+### Catatan Implementasi Fase 4 (selesai 2026-08-16)
+
+- **Database**: model `GenerationJob` & `AdapterPricingRate` ada di `prisma/schema.prisma`. Migration dibuat **manual** di `prisma/migrations/20260816000000_add_phase4_generation_jobs/migration.sql` (tanpa koneksi DB saat pembuatan). Apply dengan `prisma migrate deploy`, bukan `migrate dev`, agar tidak memicu drift detection.
+- **Prompt Compiler**: `apps/ai-service/src/prompt_compiler/image_prompt_compiler.py` — menyusun prompt konseptual (Subject, Environment, Composition, Lighting, Camera, Style, ReferenceInstructions, Constraints) dengan snapshot `bible_versions`; validasi pra-compile menahan jika field wajib kosong, Bible tidak ada, atau ContinuityFlag unresolved. 10 unit test passed.
+- **Flux Adapter**: `packages/generation-adapters/flux/flux.adapter.ts` — Budget Guard di level adapter: `submit` menolak jika estimasi biaya berubah sejak approval atau pricing rate belum diset. 10 unit test passed (termasuk 2 test negatif Budget Guard).
+- **API**: `modules/image-prompt` (compile, create job, approve, reject, submit, list jobs), `modules/budget` (kelola `AdapterPricingRate`), `modules/capability` (flag `imageGenerationEnabled` per project).
+- **Web**: `ImagePromptTab` di project detail — alur pilih Scene → Shot → Preview Prompt → Buat Job → Approve/Reject → Submit ke Flux.
+- **Env baru** (lihat `.env.example`): `AI_SERVICE_URL`, `FLUX_API_KEY`, `FLUX_API_ENDPOINT`.
+- **Konfigurasi build package generation-adapters**: `tsconfig.json` (ramah editor, include spec + types jest) dan `tsconfig.build.json` (build, exclude spec).
 
 ---
 
