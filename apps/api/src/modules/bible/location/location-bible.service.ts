@@ -17,7 +17,14 @@ export interface CreateLocationBibleInput {
 @Injectable()
 export class LocationBibleService extends BaseBibleService<any> {
   constructor(prisma: PrismaService, continuityService: ContinuityService) {
-    super(prisma, prisma.locationBible, 'locationId', continuityService);
+    super(
+      prisma,
+      prisma.locationBible,
+      'locationId',
+      continuityService,
+      prisma.location,
+      'locationEntityId',
+    );
   }
 
   /**

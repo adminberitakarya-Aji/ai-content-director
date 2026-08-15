@@ -16,6 +16,16 @@ export type PrismaDelegate = {
 };
 
 /**
+ * Delegate minimal untuk tabel identity (Character/Location/Prop) —
+ * dipakai BaseBibleService.create() untuk find-or-create row identity
+ * sebelum membuat versi pertama Bible-nya.
+ */
+export type IdentityDelegate = {
+  findFirst: (args: any) => Promise<any>;
+  create: (args: any) => Promise<any>;
+};
+
+/**
  * Transisi status review yang valid — dipakai bersama oleh
  * BaseBibleService dan ReviewService agar aturan konsisten.
  */
@@ -34,7 +44,7 @@ export function assertValidStatusTransition(
   if (!allowed.includes(newStatus)) {
     throw new BadRequestException(
       `Transisi status invalid: ${currentStatus} → ${newStatus}. ` +
-      `Transisi yang diizinkan: ${allowed.join(', ') || 'none'}`,
+        `Transisi yang diizinkan: ${allowed.join(', ') || 'none'}`,
     );
   }
 }
@@ -55,11 +65,27 @@ export abstract class BaseBibleService<
      */
     protected readonly entityIdField?: string,
     protected readonly continuityService?: ContinuityService,
-  ) { }
+    /**
+     * Delegate tabel identity (Character/Location/Prop) — jika diisi, create()
+     * akan otomatis find-or-create row identity sebelum membuat versi 1 Bible.
+     * Kosongkan untuk Style Bible (tidak punya tabel identity terpisah).
+     */
+    protected readonly identityDelegate?: IdentityDelegate,
+    /**
+     * Nama field FK ke tabel identity di model Bible
+     * ('characterEntityId' | 'locationEntityId' | 'propEntityId').
+     */
+    protected readonly entityRelationField?: string,
+  ) {}
 
   /**
    * Membuat entitas Bible versi 1 (versi pertama).
    * Data field terstruktur diterima sebagai object.
+   *
+   * Jika identityDelegate diisi (Character/Location/Prop, bukan Style), akan
+   * find-or-create row identity terlebih dulu berdasarkan `data[entityIdField]`
+   * (business ID, mis. "A01"), lalu isi `entityRelationField` dengan id UUID
+   * stabilnya — inilah FK sungguhan yang dipakai Scene/SceneCharacter/SceneProp.
    */
   async create(
     projectId: string,
@@ -81,9 +107,32 @@ export abstract class BaseBibleService<
       );
     }
 
+    let entityRelationData: Record<string, unknown> = {};
+
+    if (this.identityDelegate && this.entityRelationField && this.entityIdField) {
+      const businessId = data[this.entityIdField] as string | undefined;
+
+      if (!businessId) {
+        throw new BadRequestException(`${this.entityIdField} wajib diisi`);
+      }
+
+      let identity = await this.identityDelegate.findFirst({
+        where: { projectId, [this.entityIdField]: businessId },
+      });
+
+      if (!identity) {
+        identity = await this.identityDelegate.create({
+          data: { projectId, [this.entityIdField]: businessId },
+        });
+      }
+
+      entityRelationData = { [this.entityRelationField]: identity.id };
+    }
+
     return this.delegate.create({
       data: {
         ...data,
+        ...entityRelationData,
         projectId,
         version: 1,
         status,

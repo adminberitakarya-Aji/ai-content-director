@@ -30,7 +30,14 @@ export interface CreateCharacterBibleInput {
 @Injectable()
 export class CharacterBibleService extends BaseBibleService<any> {
   constructor(prisma: PrismaService, continuityService: ContinuityService) {
-    super(prisma, prisma.characterBible, 'characterId', continuityService);
+    super(
+      prisma,
+      prisma.characterBible,
+      'characterId',
+      continuityService,
+      prisma.character,
+      'characterEntityId',
+    );
   }
 
   /**

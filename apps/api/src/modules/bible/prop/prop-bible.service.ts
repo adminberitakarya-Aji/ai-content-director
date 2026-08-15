@@ -15,7 +15,14 @@ export interface CreatePropBibleInput {
 @Injectable()
 export class PropBibleService extends BaseBibleService<any> {
   constructor(prisma: PrismaService, continuityService: ContinuityService) {
-    super(prisma, prisma.propBible, 'propId', continuityService);
+    super(
+      prisma,
+      prisma.propBible,
+      'propId',
+      continuityService,
+      prisma.prop,
+      'propEntityId',
+    );
   }
 
   /**

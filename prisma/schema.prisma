@@ -27,11 +27,62 @@ model Project {
   updatedAt   DateTime @updatedAt
 
   stories          Story[]
+  characters       Character[]
+  locations        Location[]
+  props            Prop[]
   characterBibles  CharacterBible[]
   locationBibles   LocationBible[]
   propBibles       PropBible[]
   styleBibles      StyleBible[]
   scenes           Scene[]
+}
+
+// ===== Refactor: Character/Location/Prop sebagai identitas stabil =====
+// Identitas terpisah dari versi data (*Bible). id di sini TIDAK PERNAH
+// berubah sepanjang umur entitas, beda dengan CharacterBible.id yang
+// berganti tiap versi baru dibuat. Ini yang membuat Scene bisa punya FK
+// sungguhan (lewat SceneCharacter/SceneProp/Scene.locationEntityId di bawah)
+// tanpa harus ikut berubah tiap kali Bible naik versi.
+model Character {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  characterId String // business ID, mis. "A01" — stabil, ditentukan saat entitas pertama dibuat
+  createdAt   DateTime @default(now())
+
+  bibleVersions   CharacterBible[]
+  sceneCharacters SceneCharacter[]
+
+  @@unique([projectId, characterId])
+  @@index([projectId])
+}
+
+model Location {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  locationId String // business ID, mis. "L01"
+  createdAt  DateTime @default(now())
+
+  bibleVersions LocationBible[]
+  scenes        Scene[]
+
+  @@unique([projectId, locationId])
+  @@index([projectId])
+}
+
+model Prop {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  propId    String // business ID, mis. "O01"
+  createdAt DateTime @default(now())
+
+  bibleVersions PropBible[]
+  sceneProps    SceneProp[]
+
+  @@unique([projectId, propId])
+  @@index([projectId])
 }
 
 model Story {
@@ -55,7 +106,10 @@ model CharacterBible {
   id                String   @id @default(uuid())
   projectId         String
   project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  characterId       String // mis. A01, A02
+  characterEntityId String
+  character         Character @relation(fields: [characterEntityId], references: [id], onDelete: Cascade)
+  characterId       String // mis. A01, A02 — denormalized dari Character.characterId, tetap dipertahankan
+                            // agar query yang sudah ada (validateCharacters, checkScene, dst) tidak berubah.
   version           Int
   name              String
   role              String
@@ -87,6 +141,7 @@ model CharacterBible {
 
   @@unique([projectId, characterId, version])
   @@index([projectId, characterId])
+  @@index([characterEntityId])
 }
 
 // ===== Fase 1: Location Bible (dengan versioning) =====
@@ -94,7 +149,9 @@ model LocationBible {
   id                String   @id @default(uuid())
   projectId         String
   project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  locationId        String // mis. L01, L02
+  locationEntityId  String
+  location          Location @relation(fields: [locationEntityId], references: [id], onDelete: Cascade)
+  locationId        String // mis. L01, L02 — denormalized dari Location.locationId
   version           Int
   name              String
   exterior          Json?
@@ -113,6 +170,7 @@ model LocationBible {
 
   @@unique([projectId, locationId, version])
   @@index([projectId, locationId])
+  @@index([locationEntityId])
 }
 
 // ===== Fase 1: Prop Bible (dengan versioning) =====
@@ -120,7 +178,9 @@ model PropBible {
   id                String   @id @default(uuid())
   projectId         String
   project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  propId            String // mis. O01, O02
+  propEntityId      String
+  prop              Prop     @relation(fields: [propEntityId], references: [id], onDelete: Cascade)
+  propId            String // mis. O01, O02 — denormalized dari Prop.propId
   version           Int
   name              String
   appearance        Json
@@ -137,6 +197,7 @@ model PropBible {
 
   @@unique([projectId, propId, version])
   @@index([projectId, propId])
+  @@index([propEntityId])
 }
 
 // ===== Fase 2: Scene =====
@@ -147,9 +208,14 @@ model Scene {
   episodeId    String?
   sceneNumber  Int
   title        String?
-  characterIds Json // array of Character ID (mis. ["A01", "A02"])
-  locationId   String // Location ID (mis. "L01")
-  propIds      Json? // array of Prop ID (mis. ["O01"])
+  characterIds Json // array of Character ID (mis. ["A01", "A02"]) — TETAP sumber kebenaran
+                     // untuk logic bisnis (validasi, continuity check). sceneCharacters di
+                     // bawah adalah representasi FK-enforced yang disinkronkan otomatis,
+                     // ditambahkan khusus untuk jaminan integritas di level database.
+  locationId   String // Location ID (mis. "L01") — tetap sumber kebenaran, lihat locationEntityId
+  locationEntityId String?
+  location     Location? @relation(fields: [locationEntityId], references: [id], onDelete: Restrict)
+  propIds      Json? // array of Prop ID (mis. ["O01"]) — tetap sumber kebenaran, lihat sceneProps
   time         String
   action       String
   emotions     Json // array of { characterId, emotion }
@@ -160,9 +226,37 @@ model Scene {
 
   shots            Shot[]
   continuityFlags  ContinuityFlag[]
+  sceneCharacters  SceneCharacter[]
+  sceneProps       SceneProp[]
 
   @@unique([projectId, sceneNumber])
   @@index([projectId])
+  @@index([locationEntityId])
+}
+
+// Join table FK-enforced antara Scene dan Character (many-to-many).
+// Disinkronkan otomatis oleh SceneService setiap kali Scene.characterIds berubah —
+// lihat catatan di SceneService.syncCharacterEntities.
+model SceneCharacter {
+  sceneId           String
+  scene             Scene     @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  characterEntityId String
+  character         Character @relation(fields: [characterEntityId], references: [id], onDelete: Restrict)
+
+  @@id([sceneId, characterEntityId])
+  @@index([characterEntityId])
+}
+
+// Join table FK-enforced antara Scene dan Prop (many-to-many).
+// Disinkronkan otomatis oleh SceneService setiap kali Scene.propIds berubah.
+model SceneProp {
+  sceneId      String
+  scene        Scene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  propEntityId String
+  prop         Prop  @relation(fields: [propEntityId], references: [id], onDelete: Restrict)
+
+  @@id([sceneId, propEntityId])
+  @@index([propEntityId])
 }
 
 // ===== Fase 3: Shot (Storyboard Engine) =====
@@ -211,6 +305,8 @@ model ContinuityFlag {
 
   @@index([sceneId])
   @@index([shotId])
+  @@index([sceneId, status])
+  @@index([shotId, status])
   @@index([projectId, status])
 }
 
