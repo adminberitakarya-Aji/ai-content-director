@@ -16,6 +16,10 @@ describe('CharacterBibleService', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    character: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
     scene: {
       findMany: jest.fn().mockResolvedValue([]),
     },
@@ -46,11 +50,18 @@ describe('CharacterBibleService', () => {
   });
 
   describe('createCharacter', () => {
-    it('should create character version 1', async () => {
+    it('should create character version 1 and create new Character identity if not exists', async () => {
       mockPrisma.project.findUnique.mockResolvedValue({ id: 'project-1' });
+      mockPrisma.character.findFirst.mockResolvedValue(null); // identity belum ada
+      mockPrisma.character.create.mockResolvedValue({
+        id: 'entity-uuid-1',
+        projectId: 'project-1',
+        characterId: 'A01',
+      });
       mockPrisma.characterBible.create.mockResolvedValue({
         id: 'char-1',
         projectId: 'project-1',
+        characterEntityId: 'entity-uuid-1',
         characterId: 'A01',
         version: 1,
         name: 'Andi',
@@ -78,8 +89,66 @@ describe('CharacterBibleService', () => {
       };
 
       const result = await service.createCharacter('project-1', input);
+
       expect(result.version).toBe(1);
       expect(result.characterId).toBe('A01');
+      // Identity belum ada → harus dibuat baru
+      expect(mockPrisma.character.create).toHaveBeenCalledWith({
+        data: { projectId: 'project-1', characterId: 'A01' },
+      });
+      // characterEntityId dari identity yang baru dibuat harus ikut ke data create Bible
+      expect(mockPrisma.characterBible.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ characterEntityId: 'entity-uuid-1' }),
+        }),
+      );
+    });
+
+    it('should reuse existing Character identity instead of creating a duplicate', async () => {
+      mockPrisma.project.findUnique.mockResolvedValue({ id: 'project-1' });
+      mockPrisma.character.findFirst.mockResolvedValue({
+        id: 'entity-uuid-existing',
+        projectId: 'project-1',
+        characterId: 'A01',
+      });
+      mockPrisma.characterBible.create.mockResolvedValue({
+        id: 'char-2',
+        projectId: 'project-1',
+        characterEntityId: 'entity-uuid-existing',
+        characterId: 'A01',
+        version: 1,
+        status: 'draft',
+      });
+
+      const input = {
+        characterId: 'A01',
+        name: 'Andi',
+        role: 'Protagonis',
+        age: '25',
+        gender: 'Pria',
+        identityDesc: 'Pemuda desa',
+        faceShape: 'Bulat',
+        eyeColor: 'Coklat',
+        skinColor: 'Sawo matang',
+        defaultExpression: 'Tenang',
+        height: '170cm',
+        build: 'Rata-rata',
+        hairColor: 'Hitam',
+        hairLength: 'Pendek',
+        hairTexture: 'Lurus',
+        hairDefaultStyle: 'Rapi',
+        wardrobes: [],
+      };
+
+      await service.createCharacter('project-1', input);
+
+      // Identity sudah ada → TIDAK boleh membuat identity baru (cegah duplikat)
+      expect(mockPrisma.character.create).not.toHaveBeenCalled();
+      expect(mockPrisma.characterBible.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ characterEntityId: 'entity-uuid-existing' }),
+        }),
+      );
     });
   });
 
