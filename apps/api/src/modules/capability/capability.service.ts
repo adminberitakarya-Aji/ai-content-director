@@ -4,8 +4,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 /**
  * Capability Service — toggle kemampuan AI per Project.
  *
- * V1: toggle Image Generation on/off per Project.
- * Jika off, semua endpoint image-prompt/generation untuk project ini ditolak.
+ * V1: toggle Image Generation dan Video Generation on/off per Project.
+ * Jika off, semua endpoint image-prompt/video-prompt/generation untuk project ini ditolak.
  */
 @Injectable()
 export class CapabilityService {
@@ -27,6 +27,24 @@ export class CapabilityService {
     // V1: gunakan field status project sebagai proxy sederhana.
     // Project dengan status 'archived' tidak boleh generate.
     // Ke depan bisa ditambah field capabilities JSON di Project.
+    return project.status !== 'archived';
+  }
+
+  /**
+   * Cek apakah video generation aktif untuk project.
+   * Default: aktif (true) jika belum pernah di-set.
+   */
+  async isVideoGenerationEnabled(projectId: string): Promise<boolean> {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} tidak ditemukan`);
+    }
+
+    // V1: gunakan field status project sebagai proxy sederhana.
+    // Project dengan status 'archived' tidak boleh generate.
     return project.status !== 'archived';
   }
 

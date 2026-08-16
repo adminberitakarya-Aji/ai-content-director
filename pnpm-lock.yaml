@@ -17,6 +17,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@ai-content-director/content-adapters':
+        specifier: workspace:*
+        version: link:../../packages/content-adapters
       '@ai-content-director/generation-adapters':
         specifier: workspace:*
         version: link:../../packages/generation-adapters

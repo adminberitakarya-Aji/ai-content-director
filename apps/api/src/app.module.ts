@@ -15,6 +15,7 @@ import { ContinuityModule } from './modules/continuity/continuity.module';
 import { BudgetModule } from './modules/budget/budget.module';
 import { CapabilityModule } from './modules/capability/capability.module';
 import { ImagePromptModule } from './modules/image-prompt/image-prompt.module';
+import { VideoPromptModule } from './modules/video-prompt/video-prompt.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ImagePromptModule } from './modules/image-prompt/image-prompt.module';
     BudgetModule,
     CapabilityModule,
     ImagePromptModule,
+    VideoPromptModule,
   ],
   controllers: [HealthController],
   providers: [],

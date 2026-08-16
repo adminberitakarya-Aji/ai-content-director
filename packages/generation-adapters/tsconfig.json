@@ -5,6 +5,6 @@
     "rootDir": ".",
     "types": ["node", "jest"]
   },
-  "include": ["src/**/*.ts", "flux/**/*.ts", "base-generation-adapter.interface.ts", "**/*.spec.ts"],
+  "include": ["src/**/*.ts", "flux/**/*.ts", "seedance/**/*.ts", "base-generation-adapter.interface.ts", "**/*.spec.ts"],
   "exclude": ["node_modules", "dist"]
 }

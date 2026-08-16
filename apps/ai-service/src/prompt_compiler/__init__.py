@@ -1,10 +1,18 @@
 """
 Prompt Compiler — menyusun Image/Video Prompt konseptual dari Shot + Bible + Style.
 
-Baca docs/instructions/07_prompt_rules.md dan docs/knowledge/08_image_prompt_system.md
-untuk aturan dan struktur prompt konseptual.
+Baca docs/instructions/07_prompt_rules.md, docs/knowledge/08_image_prompt_system.md,
+dan docs/knowledge/09_video_prompt_system.md untuk aturan dan struktur prompt konseptual.
 """
 
 from .image_prompt_compiler import compile_image_prompt, ImagePromptInput, ImagePromptResult
+from .video_prompt_compiler import compile_video_prompt, VideoPromptInput, VideoPromptResult
 
-__all__ = ["compile_image_prompt", "ImagePromptInput", "ImagePromptResult"]
+__all__ = [
+    "compile_image_prompt",
+    "ImagePromptInput",
+    "ImagePromptResult",
+    "compile_video_prompt",
+    "VideoPromptInput",
+    "VideoPromptResult",
+]

@@ -100,29 +100,46 @@ Penomoran task: `[Fase].[Urutan]`.
 
 ## Fase 5 — Video Prompt Engine + Adapter Seedance
 
-- [ ] 5.1 `apps/ai-service/src/prompt_compiler`: fungsi compile Video Prompt — action, character motion, camera motion, environment motion, physics, temporal logic — baca `docs/knowledge/09_video_prompt_system.md`.
-- [ ] 5.2 `packages/generation-adapters/seedance/`: implementasi interface adapter, **termasuk normalisasi format/resolusi** dari output Flux sebagai input image-to-video (tanggung jawab adapter ini, bukan `image-prompt`/`video-prompt` module).
-- [ ] 5.3 `modules/video-prompt`: controller + service, pola sama seperti `image-prompt`.
-- [ ] 5.4 `modules/budget`: tambahkan rate Seedance ke `AdapterPricingRate`, sesuaikan estimasi untuk job video (kemungkinan struktur harga beda dari image, mis. per detik).
-- [ ] 5.5 Wiring: `video-prompt` → `budget` → `generation-adapters/seedance` → simpan `GenerationJob`.
-- [ ] 5.6 `apps/web`: preview video prompt, estimasi biaya video, tombol approve & submit, player hasil video.
-- [ ] 5.7 Test: normalisasi Flux→Seedance menghasilkan format yang diterima Seedance tanpa error; budget guard aktif untuk job video juga.
+- [x] 5.1 `apps/ai-service/src/prompt_compiler`: fungsi compile Video Prompt — action, character motion, camera motion, environment motion, physics, temporal logic — baca `docs/knowledge/09_video_prompt_system.md`.
+- [x] 5.2 `packages/generation-adapters/seedance/`: implementasi interface adapter, **termasuk normalisasi format/resolusi** dari output Flux sebagai input image-to-video (tanggung jawab adapter ini, bukan `image-prompt`/`video-prompt` module).
+- [x] 5.3 `modules/video-prompt`: controller + service, pola sama seperti `image-prompt`.
+- [x] 5.4 `modules/budget`: tambahkan rate Seedance ke `AdapterPricingRate`, sesuaikan estimasi untuk job video (kemungkinan struktur harga beda dari image, mis. per detik).
+- [x] 5.5 Wiring: `video-prompt` → `budget` → `generation-adapters/seedance` → simpan `GenerationJob`.
+- [x] 5.6 `apps/web`: preview video prompt, estimasi biaya video, tombol approve & submit, player hasil video.
+- [x] 5.7 Test: normalisasi Flux→Seedance menghasilkan format yang diterima Seedance tanpa error; budget guard aktif untuk job video juga.
 
 **Definition of Done Fase 5**: pipeline lengkap Shot → Image Prompt → Flux → gambar → Video Prompt → Seedance → video, dengan estimasi biaya di tiap submit.
 
+### Catatan Implementasi Fase 5 (selesai 2026-08-16)
+
+- **Video Prompt Compiler**: `apps/ai-service/src/prompt_compiler/video_prompt_compiler.py` — menyusun video prompt konseptual (Action, CharacterMotion, CameraMotion, EnvironmentMotion, Physics, TemporalLogic, Cinematography, Constraints) di atas Image Prompt Shot yang sama; endpoint `POST /compile-video-prompt` di `main.py`. 15 unit test passed.
+- **Seedance Adapter**: `packages/generation-adapters/seedance/seedance.adapter.ts` — `buildPrompt` (konversi prompt konseptual → payload Seedance dengan starting frame `imageUrl`), `normalizeFluxOutput` (normalisasi URL Flux + resolusi target per aspect ratio), `validateConstraints` (durasi 1–10 detik, resolusi didukung, prompt length), `estimateCost` (durationRate × durasi, selaras BudgetService), Budget Guard di `submit` (tolak jika estimasi berubah sejak approval). 18 unit test passed (total 28 dengan Flux).
+- **API**: `modules/video-prompt` (compile, create job, approve, reject, submit, list jobs) — pola sama `image-prompt`; `CapabilityService.isVideoGenerationEnabled` untuk toggle video per project; `BudgetService` mendukung `generationType: 'video'` dengan rumus `durationRate × durationSeconds`.
+- **Web**: `VideoPromptTab` di project detail — alur pilih Scene → Shot → Preview Video Prompt → Buat Job → Approve/Reject → Submit ke Seedance, dengan player video hasil.
+- **Env baru** (lihat `.env.example`): `SEEDANCE_API_KEY`, `SEEDANCE_API_ENDPOINT`.
+- **Test**: API 66 tests passed (termasuk 6 test VideoPromptService — Budget Guard end-to-end); generation-adapters 28 tests passed; ai-service 15 tests passed.
+
 ---
 
-## Fase 6 — Review Workflow Menyeluruh + Content Adapter (Sebagian)
+## Fase 6 — Review Workflow Menyeluruh + Content Adapter
 
-- [ ] 6.1 `modules/review`: perluas jadi approval gate menyeluruh — Bible, Storyboard, GenerationJob (image & video) dalam satu module terpusat (bukan status ad-hoc di masing-masing module).
-- [ ] 6.2 `apps/web`: halaman Review terpusat, filter berdasarkan status dan jenis entitas.
-- [ ] 6.3 `packages/content-adapters/short-film/`: implementasi aturan produksi (dipilih sebagai prioritas pertama).
-- [ ] 6.4 `packages/content-adapters/ugc/`: implementasi.
-- [ ] 6.5 `packages/content-adapters/social-video/`: implementasi.
-- [ ] 6.6 Wiring: `modules/project` menyimpan Content Type pilihan, Scene/Storyboard Engine membaca aturan dari content adapter terkait saat validasi/compile.
-- [ ] 6.7 Test: reject di tahap Review memicu status kembali ke draft/revisi pada entitas terkait (bukan cuma flag tanpa efek).
+- [x] 6.1 `modules/review`: perluas jadi approval gate menyeluruh — Bible, Storyboard, GenerationJob (image & video) dalam satu module terpusat (bukan status ad-hoc di masing-masing module).
+- [x] 6.2 `apps/web`: halaman Review terpusat, filter berdasarkan status dan jenis entitas.
+- [x] 6.3 `packages/content-adapters/short-film/`: implementasi aturan produksi (dipilih sebagai prioritas pertama).
+- [x] 6.4 `packages/content-adapters/ugc/`: implementasi.
+- [x] 6.5 `packages/content-adapters/social-video/`: implementasi.
+- [x] 6.6 Wiring: `modules/project` menyimpan Content Type pilihan, Scene/Storyboard Engine membaca aturan dari content adapter terkait saat validasi/compile.
+- [x] 6.7 Test: reject di tahap Review memicu status kembali ke draft/revisi pada entitas terkait (bukan cuma flag tanpa efek).
 
 **Definition of Done Fase 6**: alur produksi penuh dapat direview/disetujui/ditolak secara terpusat; minimal 3 jenis konten punya aturan produksi aktif.
+
+### Catatan Implementasi Fase 6 (selesai 2026-08-16)
+
+- **Review Workflow terpusat**: `modules/review` — `review-transitions.ts` (tabel transisi status per jenis entitas: Bible, Shot, GenerationJob), `review.service.ts` (findPendingReviews mengumpulkan antrean dari semua jenis + updateStatus dengan validasi transisi), `review.controller.ts` (endpoint `GET /projects/:id/reviews` dan `PATCH /projects/:id/reviews/:type/:entityId/status`). Reject hasil GenerationJob (review → review_rejected) mengembalikan Shot terkait ke `draft` dalam satu transaksi atomik.
+- **Content Adapters**: `packages/content-adapters/` — `base-content-adapter.ts` (interface + aturan default), `short-film/` (aturan ketat: requireLens, requireCameraMovement, strict continuity), `ugc/` (toleransi loose: strictWardrobeCheck/strictTimeCheck/strictBlockingCheck false), `social-video/` (aturan menengah), `src/registry.ts` (getContentAdapter per contentType). Jenis konten tanpa adapter tetap diproses dengan aturan default (prinsip docs/knowledge/01_content_types.md).
+- **Wiring Content Type**: `StoryboardService` memvalidasi Shot terhadap `getStoryboardRules()` adapter (requireCameraMovement, requireLens, requireCharacterBlocking); `ContinuityService` memakai `getEffectiveContinuityRules()` adapter untuk melonggarkan check tertentu (wardrobe, time, blocking, style) sesuai jenis konten.
+- **Web**: `ReviewTab` di project detail — antrean review terpusat dengan filter per jenis entitas, detail kontekstual (Shot info, GenerationJob output/cost, Bible versi), tombol Approve/Reject.
+- **Test**: API 79 tests passed (termasuk 13 test ReviewService — reject → draft dalam transaksi, transisi invalid ditolak, antrean terpusat terurut); build 5/5 sukses.
 
 ---
 

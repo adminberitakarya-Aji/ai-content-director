@@ -1,5 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getContentAdapter } from '@ai-content-director/content-adapters';
+
+/**
+ * Aturan continuity efektif untuk sebuah Project — gabungan aturan default
+ * (ketat) dengan override dari Content Adapter jenis konten (Fase 6).
+ *
+ * Jika adapter belum aktif untuk jenis konten ini, semua check tetap ketat —
+ * sesuai prinsip docs/knowledge/01_content_types.md: jenis konten tanpa
+ * adapter diproses dengan aturan default.
+ */
+interface EffectiveContinuityRules {
+  strictWardrobeCheck: boolean;
+  strictTimeCheck: boolean;
+  strictBlockingCheck: boolean;
+  strictStyleCheck: boolean;
+}
+
+const DEFAULT_CONTINUITY_RULES: EffectiveContinuityRules = {
+  strictWardrobeCheck: true,
+  strictTimeCheck: true,
+  strictBlockingCheck: true,
+  strictStyleCheck: true,
+};
 
 export interface ContinuityCheckResult {
   sceneId: string;
@@ -28,6 +51,33 @@ export class ContinuityService {
   constructor(private readonly prisma: PrismaService) { }
 
   /**
+   * Ambil aturan continuity efektif untuk Project (Fase 6 — Wiring Content Type).
+   * Adapter jenis konten (mis. UGC dengan toleransi loose) bisa melonggarkan
+   * check tertentu; tanpa adapter, semua check ketat (default).
+   */
+  private async getEffectiveContinuityRules(
+    projectId: string,
+  ): Promise<EffectiveContinuityRules> {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { contentType: true },
+    });
+
+    if (!project) return DEFAULT_CONTINUITY_RULES;
+
+    const adapter = getContentAdapter(project.contentType);
+    if (!adapter) return DEFAULT_CONTINUITY_RULES;
+
+    const rules = adapter.getContinuityRules() as Partial<EffectiveContinuityRules>;
+    return {
+      strictWardrobeCheck: rules.strictWardrobeCheck ?? true,
+      strictTimeCheck: rules.strictTimeCheck ?? true,
+      strictBlockingCheck: rules.strictBlockingCheck ?? true,
+      strictStyleCheck: rules.strictStyleCheck ?? true,
+    };
+  }
+
+  /**
    * Continuity Lapis 1 — Data Consistency.
    * Memeriksa Scene terhadap versi Bible aktif (approved terbaru):
    * - Character ID: karakter ada & approved
@@ -49,6 +99,9 @@ export class ContinuityService {
 
     const flags: ContinuityCheckResult['flags'] = [];
 
+    // Aturan continuity efektif sesuai Content Adapter jenis konten (Fase 6)
+    const rules = await this.getEffectiveContinuityRules(scene.projectId);
+
     // 1. Validasi Character ID + Wardrobe
     const characterIds = scene.characterIds as string[];
     for (const characterId of characterIds) {
@@ -69,8 +122,9 @@ export class ContinuityService {
           actualValue: `Karakter ${characterId} tidak ditemukan/belum approved`,
           description: `Karakter ${characterId} direferensikan di Scene tapi tidak ada versi approved di Character Bible`,
         });
-      } else {
+      } else if (rules.strictWardrobeCheck) {
         // Item 4a: Wardrobe consistency — wajib minimal satu set default.
+        // Check ini bisa dilonggarkan oleh Content Adapter (mis. UGC).
         const wardrobes = (character.wardrobes as any[]) || [];
         const hasDefaultSet = wardrobes.some((w) => w?.isDefault === true);
         if (wardrobes.length === 0 || !hasDefaultSet) {
@@ -129,7 +183,8 @@ export class ContinuityService {
     }
 
     // 4. Validasi Time vs Lighting Location Bible
-    if (location) {
+    // Check ini bisa dilonggarkan oleh Content Adapter (mis. UGC/social-video).
+    if (location && rules.strictTimeCheck) {
       const lighting = location.lighting as any;
       const commonTime = lighting?.commonTimeOfDay || '';
       if (commonTime && !scene.time.toLowerCase().includes(commonTime.toLowerCase())) {
@@ -144,15 +199,18 @@ export class ContinuityService {
     }
 
     // 5. Validasi Style Bible ada
-    const style = await this.prisma.styleBible.findFirst({
-      where: {
-        projectId: scene.projectId,
-        status: 'approved',
-      },
-      orderBy: { version: 'desc' },
-    });
+    // Check ini bisa dilonggarkan oleh Content Adapter (mis. UGC).
+    const style = rules.strictStyleCheck
+      ? await this.prisma.styleBible.findFirst({
+          where: {
+            projectId: scene.projectId,
+            status: 'approved',
+          },
+          orderBy: { version: 'desc' },
+        })
+      : null;
 
-    if (!style) {
+    if (rules.strictStyleCheck && !style) {
       flags.push({
         flagType: 'style',
         fieldName: 'styleBible',
@@ -339,7 +397,11 @@ export class ContinuityService {
 
     const flags: ShotContinuityCheckResult['flags'] = [];
 
+    // Aturan continuity efektif sesuai Content Adapter jenis konten (Fase 6)
+    const rules = await this.getEffectiveContinuityRules(shot.projectId);
+
     // 1. Validasi Character Blocking terhadap Scene induk
+    // (data integrity dasar — selalu dijalankan, tidak dipengaruhi toleransi)
     const sceneCharacterIds = new Set(shot.scene.characterIds as string[]);
     const blocking = (shot.characterBlocking as any[]) || [];
 
@@ -355,13 +417,17 @@ export class ContinuityService {
       }
     }
 
-    // 2. Validasi blocking consistency dengan Shot sebelumnya dalam Scene yang sama
-    const previousShot = await this.prisma.shot.findFirst({
-      where: {
-        sceneId: shot.sceneId,
-        shotNumber: shot.shotNumber - 1,
-      },
-    });
+    // 2. Validasi blocking consistency dengan Shot sebelumnya dalam Scene yang sama.
+    // Check ini bisa dilonggarkan oleh Content Adapter (mis. UGC dengan
+    // toleransi loose — variasi posisi antar-shot dianggap wajar).
+    const previousShot = rules.strictBlockingCheck
+      ? await this.prisma.shot.findFirst({
+          where: {
+            sceneId: shot.sceneId,
+            shotNumber: shot.shotNumber - 1,
+          },
+        })
+      : null;
 
     if (previousShot) {
       const prevBlocking = (previousShot.characterBlocking as any[]) || [];

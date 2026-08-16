@@ -28,7 +28,7 @@ describe('StoryboardService', () => {
     framing: 'rule of thirds',
     composition: 'foreground: meja, background: jendela',
     cameraPosition: 'eye-level',
-    lens: null,
+    lens: '35mm',
     cameraMovement: 'static',
     characterBlocking: [{ characterId: 'A01', position: 'kiri frame', orientation: 'menghadap kamera' }],
     visualBeat: 'Karakter A menatap ke luar jendela',
@@ -37,6 +37,9 @@ describe('StoryboardService', () => {
 
   beforeEach(async () => {
     prisma = {
+      project: {
+        findUnique: jest.fn().mockResolvedValue({ contentType: 'short-film' }),
+      },
       scene: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
@@ -79,6 +82,7 @@ describe('StoryboardService', () => {
         framing: 'rule of thirds',
         composition: 'foreground: meja, background: jendela',
         cameraPosition: 'eye-level',
+        lens: '35mm',
         cameraMovement: 'static',
         characterBlocking: [{ characterId: 'A01', position: 'kiri frame', orientation: 'menghadap kamera' }],
         visualBeat: 'Karakter A menatap ke luar jendela',

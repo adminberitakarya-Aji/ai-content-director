@@ -78,8 +78,9 @@ export const api = {
   resolveFlag: (projectId: string, flagId: string, status: string, note?: string) =>
     request<any>(`/projects/${projectId}/continuity/flags/${flagId}/resolve`, { method: 'PATCH', body: JSON.stringify({ status, note }) }),
 
-  // Review
-  getPendingReviews: (projectId: string) => request<any[]>(`/projects/${projectId}/reviews`),
+  // Review (Fase 6 — Review Workflow terpusat: Bible, Shot, GenerationJob)
+  getPendingReviews: (projectId: string, type?: string) =>
+    request<any[]>(`/projects/${projectId}/reviews${type ? `?type=${type}` : ''}`),
   updateReviewStatus: (projectId: string, type: string, id: string, status: string) =>
     request<any>(`/projects/${projectId}/reviews/${type}/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
@@ -100,6 +101,24 @@ export const api = {
     request<any[]>(`/projects/${projectId}/image-prompt/jobs`),
   getImageJob: (projectId: string, jobId: string) =>
     request<any>(`/projects/${projectId}/image-prompt/jobs/${jobId}`),
+
+  // Video Prompt (Fase 5)
+  compileVideoPrompt: (projectId: string, shotId: string) =>
+    request<any>(`/projects/${projectId}/video-prompt/shots/${shotId}/compile`, { method: 'POST' }),
+  createVideoJob: (projectId: string, shotId: string) =>
+    request<any>(`/projects/${projectId}/video-prompt/shots/${shotId}/jobs`, { method: 'POST' }),
+  approveVideoJob: (projectId: string, jobId: string) =>
+    request<any>(`/projects/${projectId}/video-prompt/jobs/${jobId}/approve`, { method: 'PATCH' }),
+  rejectVideoJob: (projectId: string, jobId: string) =>
+    request<any>(`/projects/${projectId}/video-prompt/jobs/${jobId}/reject`, { method: 'PATCH' }),
+  submitVideoJob: (projectId: string, jobId: string) =>
+    request<any>(`/projects/${projectId}/video-prompt/jobs/${jobId}/submit`, { method: 'POST' }),
+  getVideoJobsByShot: (projectId: string, shotId: string) =>
+    request<any[]>(`/projects/${projectId}/video-prompt/shots/${shotId}/jobs`),
+  getVideoJobsByProject: (projectId: string) =>
+    request<any[]>(`/projects/${projectId}/video-prompt/jobs`),
+  getVideoJob: (projectId: string, jobId: string) =>
+    request<any>(`/projects/${projectId}/video-prompt/jobs/${jobId}`),
 
   // Budget (Fase 4)
   estimateCost: (adapterName: string, generationType: string, params?: { width?: number; height?: number; durationSeconds?: number }) =>

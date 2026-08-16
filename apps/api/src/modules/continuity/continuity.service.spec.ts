@@ -33,6 +33,9 @@ describe('ContinuityService (Shot-level)', () => {
 
   beforeEach(async () => {
     prisma = {
+      project: {
+        findUnique: jest.fn().mockResolvedValue({ contentType: 'short-film' }),
+      },
       shot: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),

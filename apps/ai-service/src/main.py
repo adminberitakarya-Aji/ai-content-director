@@ -2,7 +2,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 
-from .prompt_compiler import compile_image_prompt, ImagePromptInput
+from .prompt_compiler import (
+    compile_image_prompt,
+    ImagePromptInput,
+    compile_video_prompt,
+    VideoPromptInput,
+)
 
 app = FastAPI(
     title="AI Content Production Director - AI Service",
@@ -105,6 +110,108 @@ async def compile_image_prompt_endpoint(request: CompileImagePromptRequest):
     result = compile_image_prompt(input_data)
 
     return CompileImagePromptResponse(
+        success=result.success,
+        prompt=result.prompt,
+        errors=result.errors,
+        warnings=result.warnings,
+        bibleVersions=result.bible_versions,
+    )
+
+
+# ===== Video Prompt Compiler Endpoint =====
+
+class CompileVideoPromptRequest(BaseModel):
+    """Request body untuk compile Video Prompt — dikirim oleh apps/api."""
+
+    # Shot data
+    shotId: str
+    shotNumber: int
+    shotType: str
+    framing: str
+    composition: str
+    cameraPosition: str
+    lens: Optional[str] = None
+    cameraMovement: Optional[str] = None
+    characterBlocking: list[CharacterBlockingModel] = Field(default_factory=list)
+    visualBeat: str = ""
+
+    # Scene data
+    sceneTime: str = ""
+    sceneAction: str = ""
+    sceneEmotions: list[dict[str, str]] = Field(default_factory=list)
+
+    # Bible data
+    characters: list[dict[str, Any]] = Field(default_factory=list)
+    location: Optional[dict[str, Any]] = None
+    style: Optional[dict[str, Any]] = None
+
+    # Image Prompt dasar (WAJIB — Video Prompt dibangun di atas Image Prompt)
+    imagePrompt: Optional[dict[str, Any]] = None
+
+    # URL gambar hasil generation (output Flux) sebagai starting frame
+    sourceImageUrl: Optional[str] = None
+
+    # Durasi Shot dalam detik (opsional; constraint teknis model ditangani adapter)
+    durationSeconds: Optional[float] = None
+
+    # Project settings
+    aspectRatio: str = "16:9"
+
+    # Continuity status
+    unresolvedFlags: list[dict[str, str]] = Field(default_factory=list)
+
+
+class CompileVideoPromptResponse(BaseModel):
+    success: bool
+    prompt: Optional[dict[str, Any]] = None
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    bibleVersions: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.post("/compile-video-prompt", response_model=CompileVideoPromptResponse)
+async def compile_video_prompt_endpoint(request: CompileVideoPromptRequest):
+    """
+    Compile Video Prompt konseptual dari Image Prompt + Scene + Shot + Bible.
+
+    Endpoint ini dipanggil oleh apps/api (modules/video-prompt) saat user
+    meminta preview atau submit video prompt untuk sebuah Shot.
+
+    Video Prompt dibangun di atas Image Prompt Shot yang sama — fokus pada
+    elemen gerak (Action, Character Motion, Camera Motion, Environment Motion,
+    Physics, Temporal Logic), bukan mendeskripsikan ulang elemen visual statis.
+
+    Prompt konseptual bersifat netral terhadap model — penerjemahan ke format
+    adapter spesifik (Seedance, dll) serta normalisasi format/resolusi dari
+    output Flux dilakukan di packages/generation-adapters.
+    """
+    input_data = VideoPromptInput(
+        shot_id=request.shotId,
+        shot_number=request.shotNumber,
+        shot_type=request.shotType,
+        framing=request.framing,
+        composition=request.composition,
+        camera_position=request.cameraPosition,
+        lens=request.lens,
+        camera_movement=request.cameraMovement,
+        character_blocking=[b.model_dump() for b in request.characterBlocking],
+        visual_beat=request.visualBeat,
+        scene_time=request.sceneTime,
+        scene_action=request.sceneAction,
+        scene_emotions=request.sceneEmotions,
+        characters=request.characters,
+        location=request.location,
+        style=request.style,
+        image_prompt=request.imagePrompt,
+        source_image_url=request.sourceImageUrl,
+        duration_seconds=request.durationSeconds,
+        aspect_ratio=request.aspectRatio,
+        unresolved_flags=request.unresolvedFlags,
+    )
+
+    result = compile_video_prompt(input_data)
+
+    return CompileVideoPromptResponse(
         success=result.success,
         prompt=result.prompt,
         errors=result.errors,

@@ -5,6 +5,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ContinuityService } from '../continuity/continuity.service';
+import {
+  getContentAdapter,
+  ContentAdapter,
+} from '@ai-content-director/content-adapters';
 
 export interface CharacterBlockingInput {
   characterId: string;
@@ -30,6 +34,25 @@ export class StoryboardService {
     private readonly prisma: PrismaService,
     private readonly continuityService: ContinuityService,
   ) { }
+
+  /**
+   * Ambil Content Adapter aktif untuk Project (Fase 6 — Wiring Content Type).
+   *
+   * Prinsip (docs/knowledge/01_content_types.md): jenis konten yang adapternya
+   * belum aktif tetap diproses dengan aturan default — mengembalikan undefined
+   * berarti validasi memakai aturan dasar tanpa aturan spesifik jenis konten.
+   */
+  private async getContentAdapterForProject(
+    projectId: string,
+  ): Promise<ContentAdapter | undefined> {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { contentType: true },
+    });
+
+    if (!project) return undefined;
+    return getContentAdapter(project.contentType);
+  }
 
   /**
    * Membuat Shot baru di dalam Scene.
@@ -69,6 +92,10 @@ export class StoryboardService {
 
     // Validasi character blocking hanya berisi karakter yang ada di Scene
     this.validateBlockingCharacters(scene, input.characterBlocking);
+
+    // Validasi aturan Storyboard sesuai Content Adapter (Fase 6)
+    const adapter = await this.getContentAdapterForProject(scene.projectId);
+    this.validateAgainstAdapter(input, adapter);
 
     const shot = await this.prisma.shot.create({
       data: {
@@ -188,6 +215,26 @@ export class StoryboardService {
       }
     }
 
+    // Validasi aturan Storyboard sesuai Content Adapter (Fase 6)
+    const adapter = await this.getContentAdapterForProject(shot.projectId);
+    this.validateAgainstAdapter(
+      {
+        shotNumber: input.shotNumber ?? shot.shotNumber,
+        shotType: input.shotType ?? shot.shotType,
+        framing: input.framing ?? shot.framing,
+        composition: input.composition ?? shot.composition,
+        cameraPosition: input.cameraPosition ?? shot.cameraPosition,
+        lens: input.lens ?? shot.lens ?? undefined,
+        cameraMovement: input.cameraMovement ?? shot.cameraMovement ?? undefined,
+        characterBlocking:
+          input.characterBlocking ??
+          ((shot.characterBlocking as unknown as CharacterBlockingInput[]) ||
+            undefined),
+        visualBeat: input.visualBeat ?? shot.visualBeat,
+      },
+      adapter,
+    );
+
     const updated = await this.prisma.shot.update({
       where: { id },
       data: {
@@ -290,6 +337,52 @@ export class StoryboardService {
     }
     if (!input.visualBeat) {
       throw new BadRequestException('Visual beat wajib diisi');
+    }
+  }
+
+  /**
+   * Validasi Shot terhadap aturan Storyboard dari Content Adapter (Fase 6).
+   *
+   * Jika adapter belum aktif untuk jenis konten ini (undefined), validasi
+   * memakai aturan dasar saja — sesuai prinsip docs/knowledge/01_content_types.md:
+   * jenis konten tanpa adapter tetap diproses dengan aturan default.
+   *
+   * Aturan adapter yang divalidasi (dari getStoryboardRules):
+   * - requireCameraMovement: camera movement wajib diisi
+   * - requireLens: lens wajib diisi
+   * - requireCharacterBlocking: character blocking wajib diisi
+   */
+  private validateAgainstAdapter(
+    input: CreateShotInput,
+    adapter?: ContentAdapter,
+  ) {
+    if (!adapter) return;
+
+    const rules = adapter.getStoryboardRules() as {
+      requireCameraMovement?: boolean;
+      requireLens?: boolean;
+      requireCharacterBlocking?: boolean;
+    };
+
+    if (rules.requireCameraMovement && !input.cameraMovement) {
+      throw new BadRequestException(
+        `Camera movement wajib diisi untuk jenis konten ${adapter.displayName}`,
+      );
+    }
+
+    if (rules.requireLens && !input.lens) {
+      throw new BadRequestException(
+        `Lens wajib diisi untuk jenis konten ${adapter.displayName}`,
+      );
+    }
+
+    if (
+      rules.requireCharacterBlocking &&
+      (!input.characterBlocking || input.characterBlocking.length === 0)
+    ) {
+      throw new BadRequestException(
+        `Character blocking wajib diisi untuk jenis konten ${adapter.displayName}`,
+      );
     }
   }
 

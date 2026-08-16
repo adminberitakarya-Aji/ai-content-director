@@ -4,6 +4,6 @@
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": ["src/**/*.ts", "base-content-adapter.interface.ts"],
+  "include": ["src/**/*.ts", "base-content-adapter.interface.ts", "base-content-adapter.ts", "short-film/**/*.ts", "ugc/**/*.ts", "social-video/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
